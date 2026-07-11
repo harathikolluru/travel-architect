@@ -1,0 +1,299 @@
+# PRD: Travel Architect (v2)
+
+**Type:** Learning / portfolio project — optimized for buildability and demo impact
+**Author:** Harathi Kolluru
+**Date:** 2026-07-07
+**Status:** Draft v2 (updated for Demo Day acceptance bars)
+**Related:** [product-brief.md](./product-brief.md)
+
+---
+
+## 1. Problem Statement
+
+Time-poor independent travelers planning a 3–7 day trip to an unfamiliar destination spend hours stitching together attractions, food, transit, and weather across a dozen tabs — and still end up with a plan they can't trust. Generic AI tools produce a plausible itinerary, but it breaks on the ground: closed restaurants, days that zigzag across the city, no rain plan, invented addresses. The cost of not solving it: the traveler wastes prep time *and* vacation days, and loses confidence that any plan will hold.
+
+---
+
+## 2. Goals
+
+1. **Generate a complete, grounded trip plan in one pass** — from minimal input to itinerary + restaurants + packing list + map, with no manual research required.
+2. **Make the plan demonstrably resilient** — every itinerary day is geographically clustered, weather-adapted, and carries a backup in every activity/meal slot.
+3. **Ground every fact in real data** — 100% of surfaced places and weather come from live MCP sources, never model memory. Zero invented addresses or opening hours.
+4. **Re-plan when things change** — weather forecast updates, user marks a day complete, user swaps a slot → plan adapts automatically.
+5. **Make the intelligence visible** — every itinerary item carries a one-line rationale explaining the geography/weather/interest logic.
+6. **(Portfolio goal) Produce a single screen that proves the product is smarter than a chatbot list** — the map + reasoning view a reviewer can grasp in under 30 seconds.
+
+---
+
+## 3. Non-Goals
+
+1. **No families/business/group modes.** Different constraint engines. Separate product — v2+.
+2. **No post-trip recap video.** Replaced by a static shareable summary.
+3. **No actual bookings/reservations/payments.** We *recommend* open, bookable places; we don't transact.
+4. **No multi-destination / multi-city trips.** One destination per plan keeps geographic clustering tractable.
+
+---
+
+## 4. User Stories
+
+### Maya — Time-Poor Explorer (primary)
+- As an independent traveler, I want to enter my trip details and get a complete day-by-day plan, so that I don't have to research across a dozen sites.
+- As a traveler with dietary needs, I want restaurant recommendations filtered to my diet, so that every suggestion is one I can actually eat at.
+- As someone who distrusts AI itineraries, I want to see *why* each item was chosen (weather, location, my interests), so that I trust the plan enough to follow it.
+- As a traveler, I want each day's stops clustered geographically and shown on a map, so that I'm not crossing the city twice a day.
+- As a traveler, I want a packing list based on the actual forecast, so that I pack for the weather I'll get.
+- As a traveler, I want the plan to update automatically if the weather forecast changes before my trip, so I'm not planning around outdated conditions.
+
+### Dan & Priya — Weekend Couple (secondary)
+- As a couple, we want to enter two sets of interests and get a blended plan, so that neither of us has to compromise every day.
+- As a couple, we want a one-tap alternative for any slot, so that we can swap something we're not feeling without re-planning the day.
+
+### Sam — Spontaneous Optimizer (secondary)
+- As a last-minute traveler, I want a great plan even when I leave most fields blank, so that I get value from minimal input.
+- As an anxious planner, I want sensible defaults I can refine, so that I'm not blocked by a long form.
+
+### Edge / error states
+- As a traveler, when a destination has thin data coverage, I want to be told clearly rather than shown invented places.
+- As a traveler, when I enter invalid dates (past, or >7 days), I want a clear correction prompt.
+- As a traveler, when no restaurant matches my diet + budget + location, I want an honest "closest options" fallback rather than a fabricated match.
+
+---
+
+## 5. Requirements
+
+### Must-Have (P0) — feature is not viable without these
+
+**P0.1 — Trip intake**
+Capture destination, travel dates, budget, pace, interests, dietary preferences, must-visit places.
+- [ ] Required: destination + dates. All other fields optional with sensible defaults.
+- [ ] Dates validated: not in the past, duration 3–7 days (warn but allow outside range).
+- [ ] Accepts multiple/blended interests (serves Dan & Priya).
+- [ ] Blank optional fields produce a complete plan via defaults (serves Sam).
+
+**P0.2 — Grounded place & weather data layer (via MCP)**
+- [ ] Places (attractions + restaurants) fetched from live MCP source with name, location (lat/lng), category, and opening hours where available.
+- [ ] Weather forecast retrieved per destination per travel date via MCP.
+- [ ] No place or hour is ever generated by the LLM. Given missing data, the item is omitted or flagged — never fabricated.
+
+**P0.3 — Day-by-day itinerary**
+- [ ] One block per travel day, paced to the user's stated pace (relaxed/moderate/packed).
+- [ ] Each day's stops are geographically clustered (proximity grouping) via `cluster-itinerary` Skill.
+- [ ] Each day adapts to that day's forecast (indoor alternatives surfaced on bad-weather days) via `generate-day-plan` Skill.
+- [ ] Must-visit places are honored and slotted into the most geographically sensible day.
+- [ ] Each item carries a one-line rationale (weather/geography/interest).
+
+**P0.4 — Restaurant recommendations**
+- [ ] Filtered for: open on the relevant date, dietary fit, budget band, proximity to that day's activities.
+- [ ] At least one recommendation per meal slot the plan includes.
+- [ ] Honest fallback when no match: show closest viable options, labeled as such.
+
+**P0.5 — Weather-aware packing list**
+- [ ] Generated from the destination's forecast across travel dates (e.g., rain → umbrella; cold → layers).
+
+**P0.6 — Interactive map**
+- [ ] All itinerary stops plotted, visually distinguishable by day.
+- [ ] Demonstrates the geographic clustering at a glance (the hero visual).
+
+**P0.7 — Backup in every slot**
+- [ ] Every activity and meal slot includes at least one alternative.
+
+**P0.8 — Agentic re-planning**
+- [ ] Weather forecast updates for a travel date → affected day re-plans with updated indoor/outdoor alternatives.
+- [ ] User marks a day complete → remaining days re-cluster and re-sequence.
+- [ ] User swaps a slot (taps an alternative) → adjacent slots re-optimize for geography.
+- [ ] Re-plan shows a diff: what changed and why.
+
+**P0.9 — Multi-modal outputs**
+- [ ] Interactive map + itinerary view (web UI) — the hero view.
+- [ ] PDF export of the full itinerary — clean printable format.
+- [ ] Email digest — sent on plan generation and each re-plan; contains day summaries, packing list, and a link back to the interactive view.
+
+### Nice-to-Have (P1) — fast follows
+- **P1.1** One-tap slot swap that replaces the primary with its backup.
+- **P1.2** Shareable static trip summary page.
+- **P1.3** Transit/walking time estimates between clustered stops.
+- **P1.4** Budget roll-up — estimated total spend across the plan.
+
+### Future Considerations (P2) — design for, don't build
+- **P2.1** Real-time on-trip re-planning.
+- **P2.2** Families/business/group modes.
+- **P2.3** Post-trip recap video.
+- **P2.4** Bookings/reservations.
+
+---
+
+## 6. Agentic Architecture
+
+### Planning loop
+
+```
+Intake (destination, dates, pace, interests, diet)
+  → cluster-itinerary Skill (geographic grouping via MCP: places-clusterer)
+  → generate-day-plan Skill (sequenced day with weather/rationale/backups via MCP: weather-forecast)
+  → render outputs (interactive map UI + PDF + email)
+  → listen for re-plan triggers
+  → re-plan if triggered (diff previous itinerary, show what changed)
+```
+
+**Re-plan triggers:**
+- Weather forecast changes for a travel date
+- User marks a day complete
+- User swaps a slot (alternative selected)
+- User changes pace, interests, or dates
+
+---
+
+### Named Skills (Bar 5)
+
+#### Skill 1: `cluster-itinerary`
+
+**Purpose:** Given a list of candidate places with lat/lng coordinates, group them into day-sized clusters that minimize backtracking across the trip.
+
+**Prompt:**
+```
+You are a geographic itinerary clustering engine. Given a list of places with lat/lng coordinates, a trip duration, and a pace preference, group the places into daily clusters such that:
+1. Each day's stops are geographically proximate — minimize total travel distance within a day.
+2. Must-visit places are honored and assigned to the most geographically sensible day.
+3. The number of stops per day matches the pace (relaxed: 2–3, moderate: 3–4, packed: 4–5).
+4. Each place appears in exactly one day.
+Use the lat/lng data provided by the MCP source. Do not invent coordinates. If a place has no coordinates, flag it and exclude it from clustering rather than guessing.
+Return structured JSON: array of days, each with an ordered list of places and a geographic centroid.
+```
+
+**Eval cases (≥3):**
+
+| # | Input | Expected output |
+|---|-------|----------------|
+| E1 | Tokyo, 5 days, moderate pace, 18 candidate places spread across Shinjuku, Shibuya, Asakusa, Ueno, Harajuku | Day 1: Shinjuku cluster; Day 2: Shibuya + Harajuku (adjacent); Day 3: Asakusa + Ueno (adjacent). No day mixes Shinjuku with Asakusa. |
+| E2 | Lisbon, 3 days, relaxed pace, 10 places across Alfama, Belém, Baixa, LX Factory | Day 1: Alfama + Baixa (walkable); Day 2: Belém + LX Factory (riverside, same side of city); Day 3: remaining. Max 3 stops/day. |
+| E3 | Re-plan trigger: user marks Day 1 complete in Tokyo plan | Days 2–5 re-clustered without Day 1 places. Centroids recalculated. Output diff shows only changed assignments. Day 1 unchanged. |
+
+---
+
+#### Skill 2: `generate-day-plan`
+
+**Purpose:** Given a geographic cluster of places, that day's weather forecast, and user preferences, generate a sequenced day plan with rationales and backups.
+
+**Prompt:**
+```
+You are a day-plan generator for travelers. Given a geographic cluster of places, a weather forecast, and user preferences (pace, interests, dietary needs, budget), produce a sequenced day plan.
+Rules:
+1. Sequence stops in a logical order that minimizes backtracking within the cluster.
+2. If the forecast shows rain or extreme heat, surface indoor alternatives for outdoor stops. Label each alternative as "indoor backup."
+3. Every activity slot and every meal slot must include at least one backup option.
+4. Each item must carry a one-line rationale: why this stop, why at this time, why in this order.
+5. Restaurant recommendations must be filtered for: open on this date (from MCP data), dietary fit, budget band, proximity to activity stops.
+6. Never invent an address, opening hour, or place that was not in the MCP-provided data. If no restaurant matches the filters, show "closest viable options" labeled as such.
+Return structured JSON: ordered array of time slots, each with primary item, backup item, and rationale.
+```
+
+**Eval cases (≥3):**
+
+| # | Input | Expected output |
+|---|-------|----------------|
+| E1 | Shinjuku cluster, sunny forecast, moderate pace, vegetarian diet, mid-range budget | Outdoor stops sequenced morning → afternoon; vegetarian restaurants only; each slot has a backup; every item has a rationale mentioning proximity or weather |
+| E2 | Asakusa cluster, rainy forecast, packed pace | All outdoor stops (Senso-ji exterior, Sumida Park) replaced by or supplemented with indoor alternatives (Senso-ji interior, Edo-Tokyo Museum); indoor backup label present on each |
+| E3 | Alfama cluster, thin data coverage (few places returned by MCP) | Plan generated from available data only; "thin data coverage" flag shown; no invented places; honest fallback messaging on empty slots |
+
+---
+
+### MCP Sources (Bar 3)
+
+Three source types required; one must be a custom server authored in Claude Code.
+
+| MCP Server | Type | Data served | Who builds it |
+|------------|------|-------------|---------------|
+| `places-clusterer` | **Custom (you build)** | Wraps Google Places API or Overpass (OSM) + applies geographic bounding-box queries per destination. Returns places with lat/lng, category, opening hours, price level, cuisine tags. This is the novel layer — the clustering logic lives here. | Harathi — authored in Claude Code |
+| `weather-forecast` | Standard wrapper | OpenWeatherMap (or similar) 7-day forecast per destination. Returns daily conditions, precipitation probability, temperature range. | Harathi |
+| `geocoding` | Standard wrapper | Nominatim (OSM) or Google Geocoding API. Resolves destination name → lat/lng bounding box. Used to scope the places query. | Harathi |
+
+**Why `places-clusterer` is the custom server:** It wraps the raw Places API and adds the clustering scope logic — converting a destination name into a bounding box, filtering by category and open status, and returning structured place objects ready for the Skills layer. No off-the-shelf MCP server does this.
+
+---
+
+## 7. Multi-Modal Outputs (Bar 4)
+
+All three outputs generated from the same structured itinerary object — no divergence between what the map shows, the PDF contains, and the email sends.
+
+| Output | Format | When generated | Contents |
+|--------|--------|----------------|----------|
+| Interactive map + itinerary | Web UI (interactive) | On every plan generation and re-plan | Map with clustered stops by day, day-by-day itinerary with rationales, backups, packing list. Re-plan diff highlighted. |
+| PDF export | PDF (downloadable) | On demand | Full itinerary per day, restaurant list, packing list. Clean printable layout. |
+| Email digest | Email (HTML) | On plan generation + each re-plan | Day-by-day summary, packing list highlights, link to interactive map. On re-plan: one-line summary of what changed. |
+
+---
+
+## 8. Success Metrics
+
+### Leading indicators (build/demo quality)
+- **Plan completeness:** 100% of generated plans include all P0 outputs. *Method:* checklist over 10 test destinations.
+- **Grounding integrity:** 0 fabricated places/hours across 10 test destinations. **This is the make-or-break metric.**
+- **Geographic sanity:** ≥90% of days pass a "no silly backtracking" eyeball check on the map.
+- **Sparse-input robustness:** A plan from *destination + dates only* is still complete and sensible.
+- **Re-plan fidelity:** Roadmap correctly updates on 5 re-plan scenarios (weather change, day complete, slot swap, pace change, dates change).
+- **Skill eval pass rate:** ≥3/3 eval cases pass for each named Skill.
+
+### Lagging indicators (portfolio outcome)
+- **Demo legibility:** A reviewer unfamiliar with the project can articulate "why this beats ChatGPT" within 30 seconds. *Method:* test on 3 people.
+- **Reusability:** The data + planning layer works on a *new, untested* destination without code changes.
+
+### Targets
+- **Success threshold:** All P0 outputs present, grounding integrity = 100%, geographic sanity ≥90% on 3 demo cities (Lisbon, Tokyo, Barcelona).
+- **Stretch:** Robust on Denver CO as a domestic test city with graceful "thin data" messaging where needed.
+
+---
+
+## 9. Open Questions
+
+**Blocking (resolve before building):**
+- **[Data]** Google Places (rich, paid) vs. OpenStreetMap/Overpass (free, variable coverage)? Determines the entire `places-clusterer` MCP server. → Resolve via the data-layer spike.
+- **[Data]** Do free sources reliably return *opening hours* and *cuisine/dietary tags* for the 3 demo cities? → Same spike.
+
+**Non-blocking (resolve during build):**
+- **[Eng]** Geographic clustering algorithm — simple proximity grouping (k-means on lat/lng) vs. anything smarter? Start simple; revisit if map looks bad.
+- **[Eng]** Re-plan diff UX — how to show what changed without overwhelming the user?
+- **[Eng/Design]** Tech stack and platform — undecided (deferred).
+- **[Design]** Map + reasoning hero view wireframe — needed before UI work.
+- **[Data]** How is "budget band" defined and mapped to Google Places price levels (1–4)?
+
+---
+
+## 10. Timeline & Phasing
+
+**Phase 0 — Data layer spike (do first)**
+Validate `places-clusterer` MCP on one city (Denver or Lisbon): can we get location, open-hours, and dietary/cuisine data cleanly? *Go/no-go gate for the entire grounding premise.*
+
+**Phase 1 — Core Skills + planning loop**
+`cluster-itinerary` + `generate-day-plan` Skills with eval suites. Intake → grounded itinerary with rationales + backups (P0.1–P0.3, P0.7). MCP sources wired.
+
+**Phase 2 — Supporting outputs**
+Restaurants, packing list (P0.4–P0.5).
+
+**Phase 3 — The hero view**
+Interactive map (P0.6) — the demo centerpiece.
+
+**Phase 4 — Re-planning loop + multi-modal**
+Re-plan triggers wired (P0.8). PDF export + email digest (P0.9).
+
+**Phase 5 — Polish / fast follows**
+Slot swap, shareable summary (P1). Eval hardening. Demo prep on 3 cities.
+
+**Critical dependency:** Everything downstream depends on Phase 0. If the data layer can't deliver grounded open-hours/dietary data, the grounding goal must be rethought before any further build.
+
+---
+
+## 11. Demo Day Acceptance Bar Checklist
+
+| Bar | Requirement | How this PRD meets it |
+|-----|------------|----------------------|
+| 1 | Configurable goal/domain + spec with target, sources, success criteria | Domain: independent travel planning. Sources: Places API, weather API, geocoding. Metrics: Section 8. |
+| 2 | Background agentic re-planning on changed inputs | P0.8: re-plan on weather update, day complete, slot swap, pace/date change — Section 6 |
+| 3 | ≥3 MCP source types + ≥1 custom server in Claude Code | 3 MCP servers: `places-clusterer` (custom), `weather-forecast`, `geocoding` — Section 6 |
+| 4 | ≥2 multi-modal outputs beyond plain text | Interactive map UI + PDF + email digest — Section 7, all P0 |
+| 5 | ≥2 named Skills, prompt + ≥3 eval cases, Claude Code + Agent SDK | `cluster-itinerary` + `generate-day-plan` — Section 6 |
+| 6 | Live deployed, HTTPS, Clerk-protected | Program infra — W5 + W8 |
+| 7 | Langfuse traces visible, spend ceiling enforced | Program infra — W7 |
+
+---
+
+*Next artifacts available on request: engineering ticket breakdown, MCP server spec for `places-clusterer`, or eval suite scaffold.*
