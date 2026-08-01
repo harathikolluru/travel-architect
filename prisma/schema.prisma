@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../packages/db/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TripStatus {
+  DRAFT
+  ACTIVE
+  COMPLETE
+}
+
+enum Pace {
+  RELAXED
+  MODERATE
+  PACKED
+}
+
+enum SlotType {
+  ACTIVITY
+  MEAL
+}
+
+enum ActiveChoice {
+  PRIMARY
+  BACKUP
+}
+
+enum PlaceCategory {
+  ATTRACTION
+  RESTAURANT
+}
+
+enum CoverageQuality {
+  RICH
+  THIN
+}
+
+enum ReplanTrigger {
+  WEATHER_CHANGE
+  DAY_COMPLETE
+  SLOT_SWAP
+  PREF_CHANGE
+  DATES_CHANGE
+}
+
+enum OutputType {
+  MAP_UI
+  PDF
+  EMAIL
+}
+
+enum AgentJobType {
+  GENERATE_PLAN
+  REPLAN
+}
+
+enum AgentJobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String
+  passwordHash       String
+  /// Product-layer hint only. Per personas research the same user flexes
+  /// between contexts, so this never hard-gates the intake flow.
+  personaType        String? // 'maya' | 'dan_priya' | 'sam'
+  preferredPace      Pace?
+  dietaryPreference  String?
+  interests          String[]
+  notificationEmail  String?
+  createdAt          DateTime   @default(now())
+  trips              TripPlan[]
+}
+
+model TripPlan {
+  id                String         @id @default(cuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id])
+  destination       String
+  destinationLat    Float
+  destinationLng    Float
+  startDate         DateTime
+  endDate           DateTime
+  pace              Pace           @default(MODERATE)
+  interests         String[]
+  dietaryPreference String?
+  mustVisit         String[]
+  budgetBand        Int? // 1–4, maps to Places price_level
+  status            TripStatus     @default(DRAFT)
+  /// Bumped on every re-plan; ReplanEvent stores prev/new for diffing
+  /// without persisting full plan snapshots.
+  version           Int            @default(1)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  days              DayPlan[]
+  packingList       PackingList?
+  replans           ReplanEvent[]
+  outputs           PlanOutput[]
+  geocoding         GeocodingResult? @relation(fields: [geocodingId], references: [id])
+  geocodingId       String?
+
+  @@index([userId, startDate])
+}
+
+model DayPlan {
+  id                  String            @id @default(cuid())
+  planId              String
+  plan                TripPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dayNumber           Int // 1-indexed
+  date                DateTime
+  weatherId           String?
+  weather             WeatherForecast?  @relation(fields: [weatherId], references: [id])
+  clusterCentroidLat  Float?
+  clusterCentroidLng  Float?
+  neighbourhoodLabel  String?
+  isComplete          Boolean           @default(false)
+  slots               ItinerarySlot[]
+  packingItems        PackingItem[]
+
+  @@unique([planId, dayNumber])
+}
+
+model ItinerarySlot {
+  id                  String        @id @default(cuid())
+  dayId               String
+  day                 DayPlan       @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  placeId             String
+  place               Place         @relation("SlotPrimary", fields: [placeId], references: [id])
+  /// P0.7 — every slot carries a backup. Same Place table as the primary.
+  backupPlaceId       String?
+  backupPlace         Place?        @relation("SlotBackup", fields: [backupPlaceId], references: [id])
+  slotType            SlotType
+  sequenceOrder       Int
+  scheduledTime       String // "10:00" — local wall time, not a timestamp
+  /// P0.3 — one-line why: geography, weather, or interest.
+  rationale           String
+  backupRationale     String?
+  /// Set when the backup was surfaced because of a bad-weather forecast.
+  isIndoorAlternative Boolean       @default(false)
+  wasSwapped          Boolean       @default(false)
+  activeChoice        ActiveChoice  @default(PRIMARY)
+  replanReason        String?
+  marker              MapMarker?
+
+  @@unique([dayId, sequenceOrder])
+}
+
+/// Grounded place cache. Nothing here is ever LLM-generated — see the
+/// grounding rule in CLAUDE.md.
+model Place {
+  id               String          @id @default(cuid())
+  sourceId         String?
+  source           McpPlaceSource? @relation(fields: [sourceId], references: [id])
+  externalId       String? // Google Places / OSM reference
+  name             String
+  address          String?
+  lat              Float
+  lng              Float
+  category         PlaceCategory
+  openingHours     Json? // [{ day, open, close }]
+  cuisineTags      String[]
+  dietaryTags      String[]
+  priceLevel       Int? // 1–4
+  isIndoor         Boolean         @default(false)
+  /// Flags places returned with sparse data so the UI can say so rather
+  /// than let the model fill the gap.
+  dataCoverageFlag CoverageQuality @default(RICH)
+  fetchedAt        DateTime        @default(now())
+  primarySlots     ItinerarySlot[] @relation("SlotPrimary")
+  backupSlots      ItinerarySlot[] @relation("SlotBackup")
+
+  @@unique([sourceId, externalId])
+  @@index([lat, lng])
+}
+
+model PackingList {
+  id          String        @id @default(cuid())
+  planId      String        @unique
+  plan        TripPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  generatedAt DateTime      @default(now())
+  items       PackingItem[]
+}
+
+model PackingItem {
+  id        String      @id @default(cuid())
+  listId    String
+  list      PackingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  itemName  String
+  /// Weather-derived justification, e.g. "rain forecast Day 3".
+  reason    String
+  dayId     String?
+  day       DayPlan?    @relation(fields: [dayId], references: [id])
+  sortOrder Int         @default(0)
+}
+
+/// P0.8 audit log. prevVersion/newVersion point at TripPlan.version so a
+/// diff can be reconstructed without storing whole snapshots.
+model ReplanEvent {
+  id              String        @id @default(cuid())
+  planId          String
+  plan            TripPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  triggerType     ReplanTrigger
+  triggeredAt     DateTime      @default(now())
+  affectedDayIds  String[]
+  diffSummary     String
+  prevVersion     Int
+  newVersion      Int
+  emailDigestSent Boolean       @default(false)
+  outputs         PlanOutput[]
+}
+
+model PlanOutput {
+  id            String       @id @default(cuid())
+  planId        String
+  plan          TripPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  outputType    OutputType
+  generatedAt   DateTime     @default(now())
+  replanEventId String?
+  replanEvent   ReplanEvent? @relation(fields: [replanEventId], references: [id])
+  shareUrl      String? // P1.2
+  pdfUrl        String?
+  emailSentAt   DateTime?
+}
+
+/// Denormalized render layer for the Leaflet map — kept separate so map
+/// styling can change without touching itinerary rows.
+model MapMarker {
+  id            String        @id @default(cuid())
+  slotId        String        @unique
+  slot          ItinerarySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  dayColor      String // '#2563eb' | '#ea580c' | '#16a34a'
+  sequenceLabel String
+}
+
+model WeatherForecast {
+  id                       String    @id @default(cuid())
+  destination              String
+  forecastDate             DateTime
+  condition                String // sunny | rainy | cloudy | stormy …
+  tempMin                  Float
+  tempMax                  Float
+  precipitationProbability Float
+  windSpeed                Float?
+  /// Derived: drives whether generate-day-plan surfaces indoor backups.
+  isIndoorDay              Boolean   @default(false)
+  source                   String    @default("open-meteo")
+  fetchedAt                DateTime  @default(now())
+  days                     DayPlan[]
+
+  @@unique([destination, forecastDate])
+}
+
+/// The custom MCP server's fetch record (PRD §6 — places-clusterer).
+model McpPlaceSource {
+  id                  String           @id @default(cuid())
+  geocodingId         String?
+  geocoding           GeocodingResult? @relation(fields: [geocodingId], references: [id])
+  destinationBbox     Json // { north, south, east, west }
+  rawPlacesCount      Int
+  coverageQuality     CoverageQuality  @default(RICH)
+  provider            String // 'google-places' | 'overpass'
+  categoryFilter      String?
+  dietFilterApplied   String?
+  clusterAlgorithm    String           @default("k-means")
+  fetchedAt           DateTime         @default(now())
+  places              Place[]
+}
+
+model GeocodingResult {
+  id          String           @id @default(cuid())
+  query       String           @unique
+  resolvedLat Float
+  resolvedLng Float
+  boundingBox Json // { north, south, east, west }
+  provider    String // 'nominatim' | 'google'
+  fetchedAt   DateTime         @default(now())
+  sources     McpPlaceSource[]
+  trips       TripPlan[]
+}
+
+/// Event bus between the app and the agent worker.
+model AgentJob {
+  id        String         @id @default(cuid())
+  type      AgentJobType
+  status    AgentJobStatus @default(QUEUED)
+  planId    String
+  payload   Json?
+  error     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+/// Bar 7 — spend ceiling enforcement lives on this table.
+model AgentRunLog {
+  id           String   @id @default(cuid())
+  jobId        String?
+  planId       String
+  kind         String // 'generate_plan' | 'replan'
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  costUsd      Float
+  durationMs   Int
+  createdAt    DateTime @default(now())
+}
