@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Architect — ER Diagram</title>
+<style>
+:root {
+  --teal:    #0f5f63;
+  --indigo:  #1f2a52;
+  --accent:  #ff8a3d;
+  --day1:    #2563eb;
+  --day2:    #ea580c;
+  --day3:    #16a34a;
+  --surface: #ffffff;
+  --bg:      #f0f4f4;
+  --line:    #d1dada;
+  --ink:     #14201f;
+  --muted:   #6b7c7b;
+  --font:    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--ink); }
+
+/* ── Page chrome ── */
+.page-header {
+  background: var(--indigo); color: #fff;
+  padding: 18px 28px;
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+}
+.page-header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; }
+.page-header p  { font-size: .82rem; color: #b0bdd4; }
+
+.legend-bar {
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  padding: 10px 28px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  font-size: .8rem; color: var(--muted);
+}
+.legend-bar strong { color: var(--ink); font-size: .78rem; }
+.leg { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.line-sample { display: flex; align-items: center; gap: 6px; }
+.line-solid  { width: 28px; height: 2px; background: var(--ink); }
+.line-dash   { width: 28px; height: 2px; background: repeating-linear-gradient(90deg, var(--day1) 0, var(--day1) 5px, transparent 5px, transparent 9px); }
+.line-dot    { width: 28px; height: 2px; background: repeating-linear-gradient(90deg, var(--muted) 0, var(--muted) 2px, transparent 2px, transparent 6px); }
+
+/* ── Canvas ── */
+.canvas-wrap {
+  padding: 36px 28px 60px;
+  overflow: auto;
+}
+
+svg.diagram {
+  display: block;
+  min-width: 1100px;
+  width: 100%;
+  font-family: var(--font);
+}
+
+/* ── Entity table styles (via SVG foreignObject isn't great; use rects+text) ── */
+
+/* Entity header */
+.ent-header  { fill: var(--teal); }
+.ent-header.accent  { fill: var(--accent); }
+.ent-header.indigo  { fill: var(--indigo); }
+.ent-header.day1    { fill: var(--day1); }
+.ent-header.day2    { fill: var(--day2); }
+.ent-header.day3    { fill: var(--day3); }
+.ent-header.purple  { fill: #7c3aed; }
+.ent-header.rose    { fill: #be123c; }
+
+.ent-title { fill: #fff; font-weight: 700; font-size: 12px; }
+.ent-pk    { fill: #ffd27a; font-size: 10.5px; font-weight: 700; }
+.ent-fk    { fill: #a5d8f3; font-size: 10.5px; }
+.ent-attr  { fill: var(--ink); font-size: 10.5px; }
+.ent-body  { fill: var(--surface); }
+.ent-row-alt { fill: #f7fafa; }
+.ent-border { fill: none; stroke: var(--line); stroke-width: 1.2; }
+.ent-divider { stroke: var(--line); stroke-width: 1; }
+
+/* Relationship lines */
+.rel-solid { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.rel-dash  { fill: none; stroke: var(--day1); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.rel-dot   { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.rel-label { fill: var(--indigo); font-size: 9.5px; font-weight: 600; }
+.rel-card  { fill: var(--muted); font-size: 9px; }
+
+/* Section background bands */
+.band-core    { fill: #e8f0f0; rx: 10; }
+.band-output  { fill: #f0edf8; rx: 10; }
+.band-ext     { fill: #fdf3ec; rx: 10; }
+
+.band-label { fill: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>✈️ Travel Architect — Entity Relationship Diagram</h1>
+  <p>Derived from PRD v2 · Personas · Prototype &nbsp;·&nbsp; 2026-07-10</p>
+</div>
+
+<div class="legend-bar">
+  <strong>Legend</strong>
+  <div class="leg"><span class="swatch" style="background:var(--teal)"></span> Core planning domain</div>
+  <div class="leg"><span class="swatch" style="background:#7c3aed"></span> Output / delivery</div>
+  <div class="leg"><span class="swatch" style="background:var(--accent)"></span> External data (MCP)</div>
+  <div class="leg"><span class="swatch" style="background:var(--indigo)"></span> User &amp; preferences</div>
+  <div class="leg"><div class="line-sample"><div class="line-solid"></div> Mandatory FK</div></div>
+  <div class="leg"><div class="line-sample"><div class="line-dash"></div> Optional FK</div></div>
+  <div class="leg"><div class="line-sample"><div class="line-dot"></div> Derived / view</div></div>
+  <span style="margin-left:auto;font-size:.78rem">PK = primary key &nbsp;·&nbsp; FK = foreign key &nbsp;·&nbsp; Yellow = PK &nbsp;·&nbsp; Blue = FK</span>
+</div>
+
+<div class="canvas-wrap">
+<svg class="diagram" viewBox="0 0 1280 1080" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+    <path d="M0,0 L0,6 L8,3 Z" fill="#374151"/>
+  </marker>
+  <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+    <path d="M0,0 L0,6 L8,3 Z" fill="var(--day1)"/>
+  </marker>
+  <marker id="arrow-gray" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+    <path d="M0,0 L0,6 L8,3 Z" fill="var(--muted)"/>
+  </marker>
+</defs>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION BANDS
+══════════════════════════════════════════════════ -->
+<!-- Core planning band -->
+<rect x="18" y="18" width="780" height="680" rx="12" fill="#e5eeee" opacity=".7"/>
+<text x="30" y="38" class="band-label">Core Planning Domain</text>
+
+<!-- Output band -->
+<rect x="18" y="716" width="780" height="340" rx="12" fill="#ede9f8" opacity=".7"/>
+<text x="30" y="736" class="band-label">Outputs &amp; Delivery</text>
+
+<!-- External / MCP band -->
+<rect x="816" y="18" width="448" height="1040" rx="12" fill="#fdf0e8" opacity=".7"/>
+<text x="828" y="38" class="band-label">External Data (MCP Sources)</text>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: User
+══════════════════════════════════════════════════ -->
+<g id="entity-user" transform="translate(36,50)">
+  <rect width="200" height="180" rx="6" class="ent-body"/>
+  <rect width="200" height="26" rx="6" class="ent-header indigo"/>
+  <rect width="200" height="4" y="22" class="ent-header indigo"/>
+  <text x="100" y="17" text-anchor="middle" class="ent-title">USER</text>
+  <!-- rows -->
+  <rect y="26" width="200" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 user_id (PK)</text>
+  <line x1="0" y1="45" x2="200" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-attr">email</text>
+  <line x1="0" y1="64" x2="200" y2="64" class="ent-divider"/>
+  <rect y="64" width="200" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">created_at</text>
+  <line x1="0" y1="83" x2="200" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">persona_type</text>
+  <text x="130" y="96" class="ent-attr" style="fill:var(--muted);font-size:9px">(maya|dan_priya|sam)</text>
+  <line x1="0" y1="102" x2="200" y2="102" class="ent-divider"/>
+  <rect y="102" width="200" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">preferred_pace</text>
+  <line x1="0" y1="121" x2="200" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">dietary_preference</text>
+  <line x1="0" y1="140" x2="200" y2="140" class="ent-divider"/>
+  <rect y="140" width="200" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">interests[ ]</text>
+  <line x1="0" y1="159" x2="200" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">notification_email</text>
+  <rect width="200" height="180" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: TripPlan
+══════════════════════════════════════════════════ -->
+<g id="entity-trip" transform="translate(280,50)">
+  <rect width="220" height="240" rx="6" class="ent-body"/>
+  <rect width="220" height="26" rx="6" class="ent-header"/>
+  <rect width="220" height="4" y="22" class="ent-header"/>
+  <text x="110" y="17" text-anchor="middle" class="ent-title">TRIP_PLAN</text>
+
+  <rect y="26" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 plan_id (PK)</text>
+  <line x1="0" y1="45" x2="220" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 user_id (FK → User)</text>
+  <line x1="0" y1="64" x2="220" y2="64" class="ent-divider"/>
+  <rect y="64" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">destination</text>
+  <line x1="0" y1="83" x2="220" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">destination_lat, destination_lng</text>
+  <line x1="0" y1="102" x2="220" y2="102" class="ent-divider"/>
+  <rect y="102" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">start_date, end_date</text>
+  <line x1="0" y1="121" x2="220" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">pace</text>
+  <text x="120" y="134" class="ent-attr" style="fill:var(--muted);font-size:9px">(relaxed|moderate|packed)</text>
+  <line x1="0" y1="140" x2="220" y2="140" class="ent-divider"/>
+  <rect y="140" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">interests[ ]</text>
+  <line x1="0" y1="159" x2="220" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">dietary_preference</text>
+  <line x1="0" y1="178" x2="220" y2="178" class="ent-divider"/>
+  <rect y="178" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="191" class="ent-attr">status</text>
+  <text x="80" y="191" class="ent-attr" style="fill:var(--muted);font-size:9px">(draft|active|complete)</text>
+  <line x1="0" y1="197" x2="220" y2="197" class="ent-divider"/>
+  <text x="10" y="210" class="ent-attr">version</text>
+  <line x1="0" y1="216" x2="220" y2="216" class="ent-divider"/>
+  <rect y="216" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="229" class="ent-attr">created_at, updated_at</text>
+  <rect width="220" height="240" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: DayPlan
+══════════════════════════════════════════════════ -->
+<g id="entity-day" transform="translate(280,332)">
+  <rect width="220" height="186" rx="6" class="ent-body"/>
+  <rect width="220" height="26" rx="6" class="ent-header day1"/>
+  <rect width="220" height="4" y="22" class="ent-header day1"/>
+  <text x="110" y="17" text-anchor="middle" class="ent-title">DAY_PLAN</text>
+
+  <rect y="26" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 day_id (PK)</text>
+  <line x1="0" y1="45" x2="220" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 plan_id (FK → TripPlan)</text>
+  <line x1="0" y1="64" x2="220" y2="64" class="ent-divider"/>
+  <rect y="64" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">day_number</text>
+  <line x1="0" y1="83" x2="220" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">date</text>
+  <line x1="0" y1="102" x2="220" y2="102" class="ent-divider"/>
+  <rect y="102" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-fk">🔗 weather_id (FK → WeatherForecast)</text>
+  <line x1="0" y1="121" x2="220" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">cluster_centroid_lat/lng</text>
+  <line x1="0" y1="140" x2="220" y2="140" class="ent-divider"/>
+  <rect y="140" width="220" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">neighbourhood_label</text>
+  <line x1="0" y1="159" x2="220" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">is_complete</text>
+  <text x="95" y="172" class="ent-attr" style="fill:var(--muted);font-size:9px">(boolean)</text>
+  <rect width="220" height="186" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: ItinerarySlot
+══════════════════════════════════════════════════ -->
+<g id="entity-slot" transform="translate(36,286)">
+  <rect width="216" height="280" rx="6" class="ent-body"/>
+  <rect width="216" height="26" rx="6" class="ent-header day2"/>
+  <rect width="216" height="4" y="22" class="ent-header day2"/>
+  <text x="108" y="17" text-anchor="middle" class="ent-title">ITINERARY_SLOT</text>
+
+  <rect y="26" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 slot_id (PK)</text>
+  <line x1="0" y1="45" x2="216" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 day_id (FK → DayPlan)</text>
+  <line x1="0" y1="64" x2="216" y2="64" class="ent-divider"/>
+  <rect y="64" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-fk">🔗 place_id (FK → Place)</text>
+  <line x1="0" y1="83" x2="216" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-fk">🔗 backup_place_id (FK → Place)</text>
+  <line x1="0" y1="102" x2="216" y2="102" class="ent-divider"/>
+  <rect y="102" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">slot_type</text>
+  <text x="90" y="115" class="ent-attr" style="fill:var(--muted);font-size:9px">(activity|meal)</text>
+  <line x1="0" y1="121" x2="216" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">sequence_order</text>
+  <line x1="0" y1="140" x2="216" y2="140" class="ent-divider"/>
+  <rect y="140" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">scheduled_time</text>
+  <line x1="0" y1="159" x2="216" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">rationale</text>
+  <text x="90" y="172" class="ent-attr" style="fill:var(--muted);font-size:9px">(one-line)</text>
+  <line x1="0" y1="178" x2="216" y2="178" class="ent-divider"/>
+  <rect y="178" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="191" class="ent-attr">backup_rationale</text>
+  <line x1="0" y1="197" x2="216" y2="197" class="ent-divider"/>
+  <text x="10" y="210" class="ent-attr">is_indoor_alternative</text>
+  <text x="10" y="210" class="ent-attr" style="fill:var(--muted);font-size:9px;dy:12px"> (boolean, weather-driven)</text>
+  <line x1="0" y1="223" x2="216" y2="223" class="ent-divider"/>
+  <rect y="223" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="236" class="ent-attr">was_swapped</text>
+  <line x1="0" y1="242" x2="216" y2="242" class="ent-divider"/>
+  <text x="10" y="255" class="ent-attr">active_choice</text>
+  <text x="100" y="255" class="ent-attr" style="fill:var(--muted);font-size:9px">(primary|backup)</text>
+  <line x1="0" y1="261" x2="216" y2="261" class="ent-divider"/>
+  <rect y="261" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="274" class="ent-attr">replan_reason</text>
+  <rect width="216" height="280" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: Place
+══════════════════════════════════════════════════ -->
+<g id="entity-place" transform="translate(548,50)">
+  <rect width="216" height="298" rx="6" class="ent-body"/>
+  <rect width="216" height="26" rx="6" class="ent-header day3"/>
+  <rect width="216" height="4" y="22" class="ent-header day3"/>
+  <text x="108" y="17" text-anchor="middle" class="ent-title">PLACE</text>
+
+  <rect y="26" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 place_id (PK)</text>
+  <line x1="0" y1="45" x2="216" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 mcp_source_id (FK → MCPPlaceSource)</text>
+  <line x1="0" y1="64" x2="216" y2="64" class="ent-divider"/>
+  <rect y="64" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">external_id</text>
+  <text x="100" y="77" class="ent-attr" style="fill:var(--muted);font-size:9px">(Google/OSM ref)</text>
+  <line x1="0" y1="83" x2="216" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">name</text>
+  <line x1="0" y1="102" x2="216" y2="102" class="ent-divider"/>
+  <rect y="102" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">address</text>
+  <line x1="0" y1="121" x2="216" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">lat, lng</text>
+  <line x1="0" y1="140" x2="216" y2="140" class="ent-divider"/>
+  <rect y="140" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">category</text>
+  <text x="80" y="153" class="ent-attr" style="fill:var(--muted);font-size:9px">(attraction|restaurant)</text>
+  <line x1="0" y1="159" x2="216" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">opening_hours[ ]</text>
+  <text x="120" y="172" class="ent-attr" style="fill:var(--muted);font-size:9px">(from MCP)</text>
+  <line x1="0" y1="178" x2="216" y2="178" class="ent-divider"/>
+  <rect y="178" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="191" class="ent-attr">cuisine_tags[ ]</text>
+  <line x1="0" y1="197" x2="216" y2="197" class="ent-divider"/>
+  <text x="10" y="210" class="ent-attr">dietary_tags[ ]</text>
+  <text x="110" y="210" class="ent-attr" style="fill:var(--muted);font-size:9px">(vegetarian…)</text>
+  <line x1="0" y1="216" x2="216" y2="216" class="ent-divider"/>
+  <rect y="216" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="229" class="ent-attr">price_level</text>
+  <text x="90" y="229" class="ent-attr" style="fill:var(--muted);font-size:9px">(1–4)</text>
+  <line x1="0" y1="235" x2="216" y2="235" class="ent-divider"/>
+  <text x="10" y="248" class="ent-attr">is_indoor</text>
+  <line x1="0" y1="254" x2="216" y2="254" class="ent-divider"/>
+  <rect y="254" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="267" class="ent-attr">data_coverage_flag</text>
+  <text x="140" y="267" class="ent-attr" style="fill:var(--muted);font-size:9px">(thin?)</text>
+  <line x1="0" y1="273" x2="216" y2="273" class="ent-divider"/>
+  <text x="10" y="286" class="ent-attr">fetched_at</text>
+  <rect width="216" height="298" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: PackingList
+══════════════════════════════════════════════════ -->
+<g id="entity-packing" transform="translate(548,390)">
+  <rect width="216" height="165" rx="6" class="ent-body"/>
+  <rect width="216" height="26" rx="6" class="ent-header" style="fill:#7c3aed"/>
+  <rect width="216" height="4" y="22" class="ent-header" style="fill:#7c3aed"/>
+  <text x="108" y="17" text-anchor="middle" class="ent-title">PACKING_LIST</text>
+
+  <rect y="26" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 list_id (PK)</text>
+  <line x1="0" y1="45" x2="216" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 plan_id (FK → TripPlan)</text>
+  <line x1="0" y1="64" x2="216" y2="64" class="ent-divider"/>
+  <rect y="64" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">generated_at</text>
+  <line x1="0" y1="83" x2="216" y2="83" class="ent-divider"/>
+
+  <!-- packing item sub-rows -->
+  <text x="10" y="96" class="ent-attr" style="fill:var(--muted)">─── PackingItem (embedded) ───</text>
+  <line x1="0" y1="102" x2="216" y2="102" class="ent-divider"/>
+  <rect y="102" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">  item_name</text>
+  <line x1="0" y1="121" x2="216" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">  reason</text>
+  <text x="78" y="134" class="ent-attr" style="fill:var(--muted);font-size:9px">(weather-derived)</text>
+  <line x1="0" y1="140" x2="216" y2="140" class="ent-divider"/>
+  <rect y="140" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-fk">  🔗 triggered_by_day_id (FK)</text>
+  <rect width="216" height="165" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     ENTITY: ReplanEvent
+══════════════════════════════════════════════════ -->
+<g id="entity-replan" transform="translate(36,612)">
+  <rect width="216" height="186" rx="6" class="ent-body"/>
+  <rect width="216" height="26" rx="6" class="ent-header" style="fill:#be123c"/>
+  <rect width="216" height="4" y="22" class="ent-header" style="fill:#be123c"/>
+  <text x="108" y="17" text-anchor="middle" class="ent-title">REPLAN_EVENT</text>
+
+  <rect y="26" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 event_id (PK)</text>
+  <line x1="0" y1="45" x2="216" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 plan_id (FK → TripPlan)</text>
+  <line x1="0" y1="64" x2="216" y2="64" class="ent-divider"/>
+  <rect y="64" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">trigger_type</text>
+  <text x="100" y="77" class="ent-attr" style="fill:var(--muted);font-size:9px">(weather|day_done</text>
+  <text x="100" y="88" class="ent-attr" style="fill:var(--muted);font-size:9px"> |slot_swap|pref_change)</text>
+  <line x1="0" y1="95" x2="216" y2="95" class="ent-divider"/>
+  <text x="10" y="108" class="ent-attr">triggered_at</text>
+  <line x1="0" y1="114" x2="216" y2="114" class="ent-divider"/>
+  <rect y="114" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="127" class="ent-attr">affected_day_ids[ ]</text>
+  <line x1="0" y1="133" x2="216" y2="133" class="ent-divider"/>
+  <text x="10" y="146" class="ent-attr">diff_summary</text>
+  <text x="100" y="146" class="ent-attr" style="fill:var(--muted);font-size:9px">(what changed)</text>
+  <line x1="0" y1="152" x2="216" y2="152" class="ent-divider"/>
+  <rect y="152" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="165" class="ent-attr">prev_version, new_version</text>
+  <line x1="0" y1="171" x2="216" y2="171" class="ent-divider"/>
+  <text x="10" y="183" class="ent-attr">email_digest_sent</text>
+  <rect width="216" height="186" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     OUTPUT ENTITIES
+══════════════════════════════════════════════════ -->
+
+<!-- PlanOutput (parent) -->
+<g id="entity-output" transform="translate(36,740)">
+  <rect width="216" height="165" rx="6" class="ent-body"/>
+  <rect width="216" height="26" rx="6" class="ent-header" style="fill:#7c3aed"/>
+  <rect width="216" height="4" y="22" class="ent-header" style="fill:#7c3aed"/>
+  <text x="108" y="17" text-anchor="middle" class="ent-title">PLAN_OUTPUT</text>
+
+  <rect y="26" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 output_id (PK)</text>
+  <line x1="0" y1="45" x2="216" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 plan_id (FK → TripPlan)</text>
+  <line x1="0" y1="64" x2="216" y2="64" class="ent-divider"/>
+  <rect y="64" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">output_type</text>
+  <text x="98" y="77" class="ent-attr" style="fill:var(--muted);font-size:9px">(map_ui|pdf|email)</text>
+  <line x1="0" y1="83" x2="216" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">generated_at</text>
+  <line x1="0" y1="102" x2="216" y2="102" class="ent-divider"/>
+  <rect y="102" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-fk">🔗 replan_event_id (FK, nullable)</text>
+  <line x1="0" y1="121" x2="216" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">share_url</text>
+  <text x="82" y="134" class="ent-attr" style="fill:var(--muted);font-size:9px">(nullable, P1)</text>
+  <line x1="0" y1="140" x2="216" y2="140" class="ent-divider"/>
+  <rect y="140" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">pdf_url, email_sent_at</text>
+  <rect width="216" height="165" rx="6" class="ent-border"/>
+</g>
+
+<!-- MapView -->
+<g id="entity-map" transform="translate(290,740)">
+  <rect width="216" height="128" rx="6" class="ent-body"/>
+  <rect width="216" height="26" rx="6" class="ent-header" style="fill:#7c3aed"/>
+  <rect width="216" height="4" y="22" class="ent-header" style="fill:#7c3aed"/>
+  <text x="108" y="17" text-anchor="middle" class="ent-title">MAP_MARKER</text>
+
+  <rect y="26" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 marker_id (PK)</text>
+  <line x1="0" y1="45" x2="216" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-fk">🔗 slot_id (FK → ItinerarySlot)</text>
+  <line x1="0" y1="64" x2="216" y2="64" class="ent-divider"/>
+  <rect y="64" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-fk">🔗 plan_id (FK → TripPlan)</text>
+  <line x1="0" y1="83" x2="216" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">day_color</text>
+  <text x="84" y="96" class="ent-attr" style="fill:var(--muted);font-size:9px">(blue|orange|green)</text>
+  <line x1="0" y1="102" x2="216" y2="102" class="ent-divider"/>
+  <rect y="102" width="216" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">sequence_label</text>
+  <rect width="216" height="128" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     EXTERNAL / MCP ENTITIES
+══════════════════════════════════════════════════ -->
+
+<!-- WeatherForecast -->
+<g id="entity-weather" transform="translate(836,50)">
+  <rect width="218" height="204" rx="6" class="ent-body"/>
+  <rect width="218" height="26" rx="6" class="ent-header accent"/>
+  <rect width="218" height="4" y="22" class="ent-header accent"/>
+  <text x="109" y="17" text-anchor="middle" class="ent-title">WEATHER_FORECAST</text>
+  <text x="109" y="17" text-anchor="middle" class="ent-title">
+    <tspan dy="0"></tspan>
+  </text>
+  <text x="162" y="14" class="ent-attr" style="fill:#ffffffaa;font-size:8.5px">MCP: weather-forecast</text>
+
+  <rect y="26" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 weather_id (PK)</text>
+  <line x1="0" y1="45" x2="218" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-attr">destination</text>
+  <line x1="0" y1="64" x2="218" y2="64" class="ent-divider"/>
+  <rect y="64" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">forecast_date</text>
+  <line x1="0" y1="83" x2="218" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">condition</text>
+  <text x="78" y="96" class="ent-attr" style="fill:var(--muted);font-size:9px">(sunny|rainy|cloudy…)</text>
+  <line x1="0" y1="102" x2="218" y2="102" class="ent-divider"/>
+  <rect y="102" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">temp_min, temp_max</text>
+  <line x1="0" y1="121" x2="218" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">precipitation_probability</text>
+  <line x1="0" y1="140" x2="218" y2="140" class="ent-divider"/>
+  <rect y="140" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">wind_speed</text>
+  <line x1="0" y1="159" x2="218" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">is_indoor_day</text>
+  <text x="100" y="172" class="ent-attr" style="fill:var(--muted);font-size:9px">(derived bool)</text>
+  <line x1="0" y1="178" x2="218" y2="178" class="ent-divider"/>
+  <rect y="178" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="191" class="ent-attr">fetched_at, source</text>
+  <rect width="218" height="204" rx="6" class="ent-border"/>
+</g>
+
+<!-- MCPPlaceSource (custom places-clusterer) -->
+<g id="entity-mcp-place" transform="translate(836,300)">
+  <rect width="218" height="222" rx="6" class="ent-body"/>
+  <rect width="218" height="26" rx="6" class="ent-header accent"/>
+  <rect width="218" height="4" y="22" class="ent-header accent"/>
+  <text x="109" y="17" text-anchor="middle" class="ent-title">MCP_PLACE_SOURCE</text>
+  <text x="156" y="14" class="ent-attr" style="fill:#ffffffaa;font-size:8.5px">MCP: places-clusterer ★</text>
+
+  <rect y="26" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 source_id (PK)</text>
+  <line x1="0" y1="45" x2="218" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-attr">destination_bounding_box</text>
+  <line x1="0" y1="64" x2="218" y2="64" class="ent-divider"/>
+  <rect y="64" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-fk">🔗 geocoding_id (FK → GeocodingResult)</text>
+  <line x1="0" y1="83" x2="218" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">raw_places_count</text>
+  <line x1="0" y1="102" x2="218" y2="102" class="ent-divider"/>
+  <rect y="102" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">coverage_quality</text>
+  <text x="120" y="115" class="ent-attr" style="fill:var(--muted);font-size:9px">(rich|thin)</text>
+  <line x1="0" y1="121" x2="218" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">provider</text>
+  <text x="68" y="134" class="ent-attr" style="fill:var(--muted);font-size:9px">(GooglePlaces|Overpass)</text>
+  <line x1="0" y1="140" x2="218" y2="140" class="ent-divider"/>
+  <rect y="140" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="153" class="ent-attr">category_filter</text>
+  <line x1="0" y1="159" x2="218" y2="159" class="ent-divider"/>
+  <text x="10" y="172" class="ent-attr">diet_filter_applied</text>
+  <line x1="0" y1="178" x2="218" y2="178" class="ent-divider"/>
+  <rect y="178" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="191" class="ent-attr">fetched_at</text>
+  <line x1="0" y1="197" x2="218" y2="197" class="ent-divider"/>
+  <text x="10" y="210" class="ent-attr">cluster_algorithm</text>
+  <text x="122" y="210" class="ent-attr" style="fill:var(--muted);font-size:9px">(k-means)</text>
+  <rect width="218" height="222" rx="6" class="ent-border"/>
+</g>
+
+<!-- GeocodingResult -->
+<g id="entity-geo" transform="translate(836,570)">
+  <rect width="218" height="148" rx="6" class="ent-body"/>
+  <rect width="218" height="26" rx="6" class="ent-header accent"/>
+  <rect width="218" height="4" y="22" class="ent-header accent"/>
+  <text x="109" y="17" text-anchor="middle" class="ent-title">GEOCODING_RESULT</text>
+  <text x="167" y="14" class="ent-attr" style="fill:#ffffffaa;font-size:8.5px">MCP: geocoding</text>
+
+  <rect y="26" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="39" class="ent-pk">🔑 geocoding_id (PK)</text>
+  <line x1="0" y1="45" x2="218" y2="45" class="ent-divider"/>
+  <text x="10" y="58" class="ent-attr">query</text>
+  <text x="58" y="58" class="ent-attr" style="fill:var(--muted);font-size:9px">(destination name)</text>
+  <line x1="0" y1="64" x2="218" y2="64" class="ent-divider"/>
+  <rect y="64" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="77" class="ent-attr">resolved_lat, resolved_lng</text>
+  <line x1="0" y1="83" x2="218" y2="83" class="ent-divider"/>
+  <text x="10" y="96" class="ent-attr">bounding_box</text>
+  <text x="105" y="96" class="ent-attr" style="fill:var(--muted);font-size:9px">(N/S/E/W)</text>
+  <line x1="0" y1="102" x2="218" y2="102" class="ent-divider"/>
+  <rect y="102" width="218" height="19" class="ent-row-alt"/>
+  <text x="10" y="115" class="ent-attr">provider</text>
+  <text x="65" y="115" class="ent-attr" style="fill:var(--muted);font-size:9px">(Nominatim|Google)</text>
+  <line x1="0" y1="121" x2="218" y2="121" class="ent-divider"/>
+  <text x="10" y="134" class="ent-attr">fetched_at</text>
+  <rect width="218" height="148" rx="6" class="ent-border"/>
+</g>
+
+<!-- ══════════════════════════════════════════════════
+     RELATIONSHIP LINES
+══════════════════════════════════════════════════ -->
+
+<!-- User (1) ──→ TripPlan (many) -->
+<path d="M236,140 L280,140" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="244" y="135" class="rel-card">1</text>
+<text x="268" y="135" class="rel-card">N</text>
+<text x="245" y="150" class="rel-label">creates</text>
+
+<!-- TripPlan (1) ──→ DayPlan (many) -->
+<path d="M390,290 L390,332" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="394" y="320" class="rel-card">N</text>
+<text x="394" y="302" class="rel-card">1</text>
+<text x="398" y="312" class="rel-label">has</text>
+
+<!-- DayPlan (1) ──→ ItinerarySlot (many) -->
+<path d="M280,432 L252,432" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="258" y="428" class="rel-card">N</text>
+<text x="275" y="428" class="rel-card">1</text>
+<text x="255" y="441" class="rel-label">contains</text>
+
+<!-- ItinerarySlot ──→ Place (primary) -->
+<path d="M252,380 Q520,380 548,200" class="rel-dash" marker-end="url(#arrow-blue)"/>
+<text x="370" y="370" class="rel-label" style="fill:var(--day1)">place_id</text>
+
+<!-- ItinerarySlot ──→ Place (backup) -->
+<path d="M252,400 Q530,408 548,240" class="rel-dot" marker-end="url(#arrow-gray)"/>
+<text x="360" y="415" class="rel-label" style="fill:var(--muted)">backup_place_id</text>
+
+<!-- Place ──→ MCPPlaceSource -->
+<path d="M764,200 L836,380" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="772" y="300" class="rel-label">sourced from</text>
+
+<!-- TripPlan ──→ PackingList (1:1) -->
+<path d="M500,200 L548,450" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="506" y="340" class="rel-card">1</text>
+<text x="540" y="445" class="rel-card">1</text>
+<text x="508" y="360" class="rel-label">generates</text>
+
+<!-- PackingList ──→ DayPlan (triggered_by) -->
+<path d="M548,500 L500,480" class="rel-dot" marker-end="url(#arrow-gray)"/>
+<text x="505" y="497" class="rel-label" style="fill:var(--muted)">triggered by</text>
+
+<!-- DayPlan ──→ WeatherForecast -->
+<path d="M500,415 L836,152" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="660" y="272" class="rel-label">weather_id</text>
+
+<!-- TripPlan ──→ ReplanEvent (1:N) -->
+<path d="M280,200 Q180,400 252,660" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="182" y="430" class="rel-card">1</text>
+<text x="245" y="655" class="rel-card">N</text>
+<text x="172" y="445" class="rel-label">triggers</text>
+
+<!-- TripPlan ──→ PlanOutput (1:N) -->
+<path d="M310,290 Q310,650 252,785" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="295" y="555" class="rel-card">1</text>
+<text x="255" y="780" class="rel-card">N</text>
+<text x="262" y="600" class="rel-label">rendered as</text>
+
+<!-- ReplanEvent ──→ PlanOutput -->
+<path d="M144,798 L144,905" class="rel-dash" marker-end="url(#arrow-blue)"/>
+<text x="148" y="862" class="rel-label" style="fill:var(--day1)">spawns</text>
+
+<!-- PlanOutput ──→ MapMarker -->
+<path d="M252,820 L290,820" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="255" y="815" class="rel-card">1</text>
+<text x="283" y="815" class="rel-card">N</text>
+<text x="256" y="830" class="rel-label">plots</text>
+
+<!-- MapMarker ──→ ItinerarySlot -->
+<path d="M398,740 Q398,630 252,540" class="rel-dot" marker-end="url(#arrow-gray)"/>
+<text x="346" y="665" class="rel-label" style="fill:var(--muted)">slot_id</text>
+
+<!-- MCPPlaceSource ──→ GeocodingResult -->
+<path d="M945,522 L945,570" class="rel-solid" marker-end="url(#arrow)"/>
+<text x="950" y="552" class="rel-label">scoped by</text>
+
+<!-- ══════════════════════════════════════════════════
+     CARDINALITY LEGEND (bottom-right)
+══════════════════════════════════════════════════ -->
+<g transform="translate(836,760)">
+  <rect width="400" height="116" rx="8" fill="white" opacity=".9" stroke="#d1dada" stroke-width="1"/>
+  <text x="14" y="20" style="font-size:11px;font-weight:700;fill:#1f2a52">Cardinality &amp; Key</text>
+  <text x="14" y="38" style="font-size:9.5px;fill:#4a5a59">User ──(1:N)──→ TripPlan       &nbsp; One user can have many plans</text>
+  <text x="14" y="52" style="font-size:9.5px;fill:#4a5a59">TripPlan ──(1:N)──→ DayPlan   &nbsp; One plan has many days</text>
+  <text x="14" y="66" style="font-size:9.5px;fill:#4a5a59">DayPlan ──(1:N)──→ ItinerarySlot  &nbsp; Each day has 2–5 slots (pace-driven)</text>
+  <text x="14" y="80" style="font-size:9.5px;fill:#4a5a59">ItinerarySlot ──(N:1)──→ Place (×2)  &nbsp; Primary + backup, both from Place</text>
+  <text x="14" y="94" style="font-size:9.5px;fill:#4a5a59">TripPlan ──(1:1)──→ PackingList  &nbsp; One packing list per plan, rebuilt on replan</text>
+  <text x="14" y="108" style="font-size:9.5px;fill:#4a5a59">★ places-clusterer = custom MCP server (PRD §6)</text>
+</g>
+
+</svg>
+</div>
+
+</body>
+</html>
