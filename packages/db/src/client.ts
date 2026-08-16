@@ -1,3 +1,6 @@
+// Load .env before the adapter reads DATABASE_URL. Next.js does this itself,
+// but tsx entrypoints (agent CLI, scripts) import this module first.
+import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
 

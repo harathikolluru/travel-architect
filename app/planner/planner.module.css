@@ -1,4 +1,5 @@
 .wrap {
+  position: relative; /* anchors the absolutely-positioned AuthNav */
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -127,3 +128,22 @@
 }
 
 .submit:hover { background: #0a4a4d; }
+
+.error {
+  color: #be123c;
+  font-size: 0.85rem;
+  margin: -8px 0 0;
+}
+
+.note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+.submit:disabled {
+  background: #9ab0b0;
+  cursor: not-allowed;
+}

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
+    "agent",
     "packages/*"
   ],
   "scripts": {
@@ -17,12 +18,15 @@
     "db:up": "docker compose up -d"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.233",
+    "@auth/prisma-adapter": "^2.11.3",
     "@prisma/adapter-pg": "^6.0.0",
     "@prisma/client": "^6.0.0",
     "@travel-architect/contracts": "*",
     "@travel-architect/db": "*",
     "dotenv": "^17.4.2",
     "next": "15.3.4",
+    "next-auth": "^5.0.0-beta.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tsx": "^4.23.1",

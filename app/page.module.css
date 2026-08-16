@@ -1,4 +1,5 @@
 .hero {
+  position: relative; /* anchors the absolutely-positioned AuthNav */
   min-height: 100vh;
   display: flex;
   flex-direction: column;

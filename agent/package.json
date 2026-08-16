@@ -1,0 +1,17 @@
+{
+  "name": "@travel-architect/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "latest",
+    "@travel-architect/contracts": "*",
+    "@travel-architect/db": "*",
+    "@travel-architect/mcp": "*",
+    "dotenv": "^17",
+    "zod": "^4"
+  },
+  "scripts": {
+    "plan": "tsx src/cli.ts plan"
+  }
+}

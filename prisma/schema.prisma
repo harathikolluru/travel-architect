@@ -69,8 +69,10 @@ enum AgentJobStatus {
 model User {
   id                 String     @id @default(cuid())
   email              String     @unique
-  name               String
-  passwordHash       String
+  /// Nullable because OAuth providers do not all return a name.
+  name               String?
+  emailVerified      DateTime?
+  image              String?
   /// Product-layer hint only. Per personas research the same user flexes
   /// between contexts, so this never hard-gates the intake flow.
   personaType        String? // 'maya' | 'dan_priya' | 'sam'
@@ -80,6 +82,42 @@ model User {
   notificationEmail  String?
   createdAt          DateTime   @default(now())
   trips              TripPlan[]
+  accounts           Account[]
+  sessions           Session[]
+}
+
+/// Auth.js adapter models. Sign-in is OAuth-only (Google, Microsoft) — there
+/// is deliberately no password column, so there is nothing to leak or reset.
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
 }
 
 model TripPlan {
@@ -261,10 +299,16 @@ model WeatherForecast {
 }
 
 /// The custom MCP server's fetch record (PRD §6 — places-clusterer).
+///
+/// Doubles as the Overpass cache. Overpass has no SLA and rate-limits, and a
+/// city's places barely change week to week, so `cacheKey` lets a repeat trip
+/// to the same destination reuse a recent fetch instead of re-querying.
 model McpPlaceSource {
   id                  String           @id @default(cuid())
   geocodingId         String?
   geocoding           GeocodingResult? @relation(fields: [geocodingId], references: [id])
+  /// Normalised destination query, e.g. "denver, colorado".
+  cacheKey            String?
   destinationBbox     Json // { north, south, east, west }
   rawPlacesCount      Int
   coverageQuality     CoverageQuality  @default(RICH)
@@ -272,8 +316,12 @@ model McpPlaceSource {
   categoryFilter      String?
   dietFilterApplied   String?
   clusterAlgorithm    String           @default("k-means")
+  /// Full place payload, so a cache hit needs no further network calls.
+  cachedPlaces        Json?
   fetchedAt           DateTime         @default(now())
   places              Place[]
+
+  @@index([cacheKey, fetchedAt])
 }
 
 model GeocodingResult {

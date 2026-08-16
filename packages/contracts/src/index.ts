@@ -65,7 +65,14 @@ export const PlaceSpecSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   category: z.enum(PLACE_CATEGORIES),
+  /** Structured hours, when the source provides them in a parseable form. */
   openingHours: z.array(OpeningHourSchema).optional(),
+  /**
+   * Source hours verbatim (e.g. OSM's `Mo-Sa 10:00-18:00; PH off`). Displayed
+   * as-is and never parsed into day ranges — a wrong parse would assert hours
+   * we cannot stand behind, which violates the grounding rule.
+   */
+  openingHoursRaw: z.string().optional(),
   cuisineTags: z.array(z.string()).default([]),
   dietaryTags: z.array(z.string()).default([]),
   priceLevel: z.number().int().min(1).max(4).optional(),
@@ -191,13 +198,29 @@ export const ReplanEntrySpecSchema = z.object({
   replanReason: z.string().min(5).max(160),
 });
 
-export const ReplanOutputSchema = z.object({
-  triggerType: z.enum(REPLAN_TRIGGERS),
-  affectedDayNumbers: z.array(z.number().int().positive()).min(1),
-  /** Shown verbatim in the UI diff banner and the email digest. */
-  diffSummary: z.string().min(10).max(400),
-  entries: z.array(ReplanEntrySpecSchema).min(1).max(12),
+/** Slots to drop, e.g. when a pace change means a day now holds fewer stops. */
+export const ReplanRemovalSchema = z.object({
+  dayNumber: z.number().int().positive(),
+  sequenceOrder: z.number().int().positive(),
+  wasName: z.string().min(1),
+  reason: z.string().min(5).max(160),
 });
+
+export const ReplanOutputSchema = z
+  .object({
+    triggerType: z.enum(REPLAN_TRIGGERS),
+    affectedDayNumbers: z.array(z.number().int().positive()).min(1),
+    /** Shown verbatim in the UI diff banner and the email digest. */
+    diffSummary: z.string().min(10).max(400),
+    /** Slots to add or replace. */
+    entries: z.array(ReplanEntrySpecSchema).max(24).default([]),
+    /** Slots to delete. */
+    removals: z.array(ReplanRemovalSchema).max(12).default([]),
+  })
+  .refine((r) => r.entries.length + r.removals.length > 0, {
+    message: 'a re-plan must change something — omit the call entirely if nothing needs changing',
+    path: ['entries'],
+  });
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -214,6 +237,7 @@ export type DayPlanSpec = z.infer<typeof DayPlanSpecSchema>;
 export type PackingItemSpec = z.infer<typeof PackingItemSpecSchema>;
 export type PlannerOutput = z.infer<typeof PlannerOutputSchema>;
 export type ReplanEntrySpec = z.infer<typeof ReplanEntrySpecSchema>;
+export type ReplanRemoval = z.infer<typeof ReplanRemovalSchema>;
 export type ReplanOutput = z.infer<typeof ReplanOutputSchema>;
 
 /** Stable day color so the map and the itinerary panel never disagree. */

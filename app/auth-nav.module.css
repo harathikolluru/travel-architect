@@ -1,0 +1,55 @@
+.nav {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.signIn {
+  background: var(--teal);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.signIn:hover {
+  background: #0a4a4d;
+}
+
+.who {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.signOut {
+  background: none;
+  border: 1.5px solid #d1dada;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.signOut:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: #a8b8b8;
+  border: 1px dashed #d1dada;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: help;
+}

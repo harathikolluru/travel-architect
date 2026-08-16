@@ -1,10 +1,11 @@
 import Link from "next/link";
+import AuthNav from "./AuthNav";
 import styles from "./page.module.css";
-
 
 export default function Home() {
   return (
     <main className={styles.hero}>
+      <AuthNav />
       <div className={styles.badge}>AI Travel Planning</div>
       <h1 className={styles.headline}>
         A plan that survives reality.
