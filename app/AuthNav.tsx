@@ -1,9 +1,18 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { auth, authEnabled, signOut } from '@/app/auth';
 import styles from './auth-nav.module.css';
 
-/** Top-right account controls. Renders nothing when no provider is configured. */
+/**
+ * Top-right account controls.
+ *
+ * Must render per-request: the OAuth env vars are injected by the Container App
+ * at runtime, not at image build time. Prerendering this baked "Sign-in not
+ * configured" into the static HTML of the deployed landing page.
+ */
 export default async function AuthNav() {
+  await connection();
+
   if (!authEnabled()) {
     return (
       <nav className={styles.nav}>
