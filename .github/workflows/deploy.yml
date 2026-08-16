@@ -37,6 +37,28 @@ jobs:
           az acr build --registry ${{ vars.ACR_NAME }} \
             --image ${{ vars.STUDENT }}/web:${{ github.sha }} .
 
+      # App secrets live in GitHub, not Azure: the student account is read-only
+      # on rg-students-platform, so only this CI identity can write them.
+      # DATABASE_URL, AUTH_SECRET and AUTH_URL are provisioned by the platform —
+      # do not set them here.
+      - name: Sync app config
+        run: |
+          az containerapp secret set \
+            --resource-group rg-students-platform \
+            --name ca-${{ vars.STUDENT }} \
+            --secrets \
+              anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
+              google-client-id="${{ secrets.AUTH_GOOGLE_ID }}" \
+              google-client-secret="${{ secrets.AUTH_GOOGLE_SECRET }}"
+          az containerapp update \
+            --resource-group rg-students-platform \
+            --name ca-${{ vars.STUDENT }} \
+            --set-env-vars \
+              ANTHROPIC_API_KEY=secretref:anthropic-api-key \
+              AUTH_GOOGLE_ID=secretref:google-client-id \
+              AUTH_GOOGLE_SECRET=secretref:google-client-secret \
+              AGENT_MODEL=claude-sonnet-5
+
       - name: Deploy to Container App
         run: |
           az containerapp update \
