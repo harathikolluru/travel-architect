@@ -19,3 +19,13 @@ body {
   background: var(--bg);
   color: var(--ink);
 }
+
+/* The PDF renderer runs with printBackground:true so weather bands and rules
+   survive. Without this the page background paints a grey block down the whole
+   of the final sheet, past where the content ends. */
+@media print {
+  html,
+  body {
+    background: #fff;
+  }
+}

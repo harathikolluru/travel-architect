@@ -1,0 +1,248 @@
+/* Paper-first styles. Screen rendering is a preview of the printed page. */
+
+.sheet {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 28px 48px;
+  background: #fff;
+  color: #14201f;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+/* ── screen-only controls ── */
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e2eaea;
+}
+
+.back {
+  color: #6b7c7b;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.back:hover { color: #14201f; }
+
+.printBtn {
+  background: #0f5f63;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.printBtn:hover { background: #0a4a4d; }
+
+.secondaryBtn {
+  background: none;
+  border: 1px solid #d1dada;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  color: #4a5a59;
+  cursor: pointer;
+}
+
+.secondaryBtn:hover { border-color: #0f5f63; color: #0f5f63; }
+
+.printBtn:disabled { background: #9ab0b0; cursor: default; }
+
+.error {
+  font-size: 0.82rem;
+  color: #be123c;
+}
+
+/* ── document ── */
+
+.header {
+  margin-bottom: 26px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #1f2a52;
+}
+
+.title {
+  font-size: 22pt;
+  font-weight: 800;
+  color: #1f2a52;
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.meta {
+  font-size: 10pt;
+  color: #6b7c7b;
+}
+
+.day {
+  margin-bottom: 22px;
+}
+
+.dayHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1px solid #d1dada;
+  padding-bottom: 5px;
+  margin-bottom: 4px;
+  /* A heading stranded at the foot of a page is worse than a page break. */
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.dayTitle {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #1f2a52;
+}
+
+.hood {
+  font-size: 10pt;
+  color: #6b7c7b;
+}
+
+.weather {
+  font-size: 9.5pt;
+  color: #7a5a00;
+  background: #fff8ec;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  display: inline-block;
+}
+
+.slots {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.slot {
+  border-bottom: 1px solid #f0f4f4;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.slot td {
+  padding: 9px 0;
+  vertical-align: top;
+}
+
+.time {
+  width: 58px;
+  font-size: 10pt;
+  font-weight: 600;
+  color: #6b7c7b;
+  white-space: nowrap;
+}
+
+.place {
+  font-size: 11.5pt;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.rationale {
+  font-size: 10pt;
+  color: #4a5a59;
+  margin-bottom: 3px;
+}
+
+.detail {
+  font-size: 9pt;
+  color: #8a9a9a;
+}
+
+.backup {
+  font-size: 9pt;
+  color: #6b7c7b;
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 2px solid #e2eaea;
+}
+
+.packing {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 2px solid #1f2a52;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.packingItems {
+  list-style: none;
+  margin-top: 10px;
+  columns: 2;
+  column-gap: 28px;
+}
+
+.packingItems li {
+  font-size: 10pt;
+  margin-bottom: 8px;
+  break-inside: avoid;
+  padding-left: 20px;
+  position: relative;
+}
+
+/* A real box to tick once printed. */
+.checkbox {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 11px;
+  height: 11px;
+  border: 1.2px solid #8a9a9a;
+  border-radius: 2px;
+}
+
+.reason {
+  color: #6b7c7b;
+}
+
+.footer {
+  margin-top: 30px;
+  padding-top: 12px;
+  border-top: 1px solid #e2eaea;
+  font-size: 8.5pt;
+  color: #8a9a9a;
+  line-height: 1.45;
+}
+
+/* ── print ── */
+
+@media print {
+  .controls { display: none; }
+
+  .sheet {
+    max-width: none;
+    padding: 0;
+    font-size: 10pt;
+    line-height: 1.4;
+    /* printBackground:true would otherwise paint this white block down the
+       whole of the final page, past where the content ends. */
+    background: transparent;
+  }
+
+  .slot td { padding: 6px 0; }
+  .day { margin-bottom: 16px; }
+  .header { margin-bottom: 18px; }
+
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  /* Backgrounds are dropped by default; keep the weather band legible. */
+  .weather {
+    background: transparent;
+    padding: 0;
+    color: #6b5000;
+  }
+}

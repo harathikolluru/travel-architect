@@ -364,6 +364,9 @@ export default function ItineraryView({ planId }: { planId: string }) {
             )}
           </span>
         </div>
+        <Link href={`/plan/${planId}/print`} className={styles.printLink}>
+          ⎙ Print / PDF
+        </Link>
         <Link href="/planner" className={styles.newTrip}>+ New trip</Link>
       </header>
 

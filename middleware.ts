@@ -31,6 +31,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // The PDF renderer reaches the print page with a signed, plan-scoped token
+  // instead of a cookie. Let it past the cookie check; the page verifies the
+  // signature itself, so an invalid token still 404s.
+  if (pathname.startsWith('/plan/') && req.nextUrl.searchParams.has('printToken')) {
+    return NextResponse.next();
+  }
+
   // Presence check only — the session cookie is verified in the route handlers,
   // which run on Node. Middleware runs on the edge, where the Prisma adapter
   // is unavailable.
