@@ -116,6 +116,7 @@ export default function ItineraryView({ planId }: { planId: string }) {
   const [swapping, setSwapping] = useState<string | null>(null);
   const [weather, setWeather] = useState<WeatherChange[] | null>(null);
   const [weatherDismissed, setWeatherDismissed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<unknown>(null);
 
@@ -197,6 +198,35 @@ export default function ItineraryView({ planId }: { planId: string }) {
   async function refresh() {
     const res = await fetch(`/api/plans/${planId}`);
     if (res.ok) setData(await res.json());
+  }
+
+  /**
+   * Generates and saves the PDF without leaving the page. The print layout is
+   * rendered server-side by Chromium, so there is no preview step — the user's
+   * PDF viewer is a better preview than a web page imitating one.
+   */
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/plans/${planId}/pdf`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Could not generate the PDF');
+      }
+      const blob = await res.blob();
+      const name =
+        res.headers.get('Content-Disposition')?.match(/filename="(.+?)"/)?.[1] ?? 'itinerary.pdf';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setReplanError((e as Error).message);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   // Check the forecast once the plan is on screen. The traveller cannot know
@@ -364,9 +394,14 @@ export default function ItineraryView({ planId }: { planId: string }) {
             )}
           </span>
         </div>
-        <Link href={`/plan/${planId}/print`} className={styles.printLink}>
-          ⎙ Print / PDF
-        </Link>
+        <button
+          type="button"
+          className={styles.printLink}
+          onClick={downloadPdf}
+          disabled={downloading}
+        >
+          {downloading ? 'Preparing…' : 'Download PDF'}
+        </button>
         <Link href="/planner" className={styles.newTrip}>+ New trip</Link>
       </header>
 

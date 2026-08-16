@@ -38,9 +38,14 @@ export async function GET(
 
   const { chromium } = await import('playwright-core');
 
-  // Same origin as the incoming request, so this works on localhost and on the
-  // deployed hostname without configuration.
-  const origin = new URL(req.url).origin;
+  // Behind the platform proxy the container only sees its own bind address, so
+  // req.url yields https://0.0.0.0:3000 — a URL Chromium cannot load. Prefer
+  // the forwarded headers, then AUTH_URL, and fall back to req.url locally.
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+  const origin = host
+    ? `${proto}://${host}`
+    : (process.env.AUTH_URL ?? new URL(req.url).origin);
   const token = createPrintToken(planId);
   const target = `${origin}/plan/${planId}/print?printToken=${encodeURIComponent(token)}`;
 

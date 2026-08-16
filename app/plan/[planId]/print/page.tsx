@@ -1,14 +1,14 @@
 // Printable itinerary (P0.9).
 //
-// Rendered server-side from the same TripPlan the map view uses, so the PDF and
-// the web view can never disagree. Styled for paper: no chrome, no map tiles,
-// page breaks between days.
+// Internal render target for the PDF route — not linked from the UI. Headless
+// Chromium loads this page with a signed token and prints it, so the PDF and
+// the web view are generated from the same TripPlan and cannot disagree.
+// Styled for paper: no chrome, no map tiles.
 
 import { notFound } from 'next/navigation';
 import { prisma } from '@travel-architect/db';
 import { auth, authEnabled } from '@/app/auth';
 import { verifyPrintToken } from '@/app/lib/print-token';
-import PrintButton from './PrintButton';
 import styles from './print.module.css';
 
 export const runtime = 'nodejs';
@@ -62,8 +62,6 @@ export default async function PrintPage({
 
   return (
     <main className={styles.sheet}>
-      <PrintButton />
-
       <header className={styles.header}>
         <h1 className={styles.title}>{plan.destination}</h1>
         <p className={styles.meta}>
