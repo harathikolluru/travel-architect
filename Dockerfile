@@ -19,6 +19,18 @@ COPY . .
 RUN npm ci --include=dev && npx prisma generate && npm run build
 ENV NODE_ENV=production
 
+# The planner runs the Claude Agent SDK with permissionMode 'bypassPermissions',
+# which the CLI refuses under root ("--dangerously-skip-permissions cannot be
+# used with root/sudo privileges"). Containers run as root by default, so the
+# agent worked locally and failed in production until this user existed.
+RUN addgroup -g 1001 -S nodejs \
+ && adduser -u 1001 -S nextjs -G nodejs -h /home/nextjs \
+ && mkdir -p /home/nextjs \
+ && chown -R nextjs:nodejs /app /home/nextjs
+USER nextjs
+# The SDK writes config under $HOME; without this it resolves to / and fails.
+ENV HOME=/home/nextjs
+
 ENV PORT=3000
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start -- -H 0.0.0.0"]
