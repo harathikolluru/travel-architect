@@ -1,6 +1,10 @@
 generator client {
   provider = "prisma-client"
   output   = "../packages/db/generated/prisma"
+  // The deploy image is node:22-slim, which ships OpenSSL 3.0. Without this
+  // Prisma generates only the native engine and fails at runtime with
+  // "could not locate the Query Engine for runtime debian-openssl-3.0.x".
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
