@@ -14,6 +14,9 @@ import TripList, { type TripCard } from './TripList';
 import styles from './trips.module.css';
 
 export const runtime = 'nodejs';
+// This page queries Postgres, which does not exist during the Docker build.
+// Without this Next prerenders it and the build fails on a Prisma error.
+export const dynamic = 'force-dynamic';
 
 /** Dates are stored at UTC midnight, so compare on the date part only. */
 function isoDate(d: Date): string {
