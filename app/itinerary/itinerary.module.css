@@ -525,3 +525,60 @@
 
 .printLink:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
 .printLink:disabled { opacity: 0.6; cursor: default; }
+
+.dateInput {
+  border: 1px solid #d1dada;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dateInput:focus { outline: none; border-color: var(--teal); }
+
+.dateSep {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.dateInput:disabled { opacity: 0.5; cursor: default; }
+
+.applyBtn {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.applyBtn:hover { background: #0a4a4d; }
+
+.cancelBtn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.cancelBtn:hover { color: var(--ink); }
+
+.dayPending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid #f0f4f4;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-style: italic;
+}

@@ -50,7 +50,7 @@ const TRIGGER_BRIEF: Record<ReplanTrigger, string> = {
   pref_change:
     'Pace, interests, or diet changed. This is a structural change, not a swap: a pace change alters how many stops each day holds, so days must gain or lose stops to match. Adding a stop means finding a new place near that day\'s existing centre and giving it a time that fits the sequence; removing one means dropping the weakest fit and re-timing what remains.',
   dates_change:
-    'The travel dates moved. Re-check opening hours against the new days of the week — a Monday-closed museum is the classic failure here — and re-check the forecast.',
+    'The travel dates changed. The trip may have moved, grown, or shrunk; the days have already been re-dated, created, or deleted, so read get_current_plan for the new shape. A day that exists with no slots is a new day you must plan from scratch. Re-check every stop\'s opening hours against its new weekday — a Monday-closed museum is the classic failure here — and re-check the forecast.',
 };
 
 export function replanPrompt(opts: {

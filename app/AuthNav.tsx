@@ -37,6 +37,9 @@ export default async function AuthNav() {
 
   return (
     <nav className={styles.nav}>
+      <Link href="/trips" className={styles.tripsLink}>
+        Your trips
+      </Link>
       <span className={styles.who}>{session.user.name ?? session.user.email}</span>
       <form
         action={async () => {

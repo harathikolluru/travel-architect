@@ -117,6 +117,9 @@ export default function ItineraryView({ planId }: { planId: string }) {
   const [weather, setWeather] = useState<WeatherChange[] | null>(null);
   const [weatherDismissed, setWeatherDismissed] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // Pending date edits, null until the user touches a field.
+  const [draftStart, setDraftStart] = useState<string | null>(null);
+  const [draftEnd, setDraftEnd] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<unknown>(null);
 
@@ -124,7 +127,10 @@ export default function ItineraryView({ planId }: { planId: string }) {
   const failed = data?.job?.status === 'FAILED' && data?.job?.type !== 'REPLAN';
   // Server-side truth, so a reload mid-run still shows the right state.
   const jobInFlight = data?.job?.status === 'QUEUED' || data?.job?.status === 'RUNNING';
-  const busy = replanning || jobInFlight;
+  // Once the server has spoken, believe it. `replanning` only covers the gap
+  // between clicking and the first poll — on its own it can strand the spinner
+  // if a run settles while the page is not polling.
+  const busy = jobInFlight || (replanning && data?.job == null);
 
   // Poll until the agent has written days. Resumes while a re-plan runs so the
   // itinerary refreshes in place when it lands.
@@ -133,22 +139,27 @@ export default function ItineraryView({ planId }: { planId: string }) {
     let timer: ReturnType<typeof setTimeout>;
 
     async function poll() {
+      let settled = false;
       try {
         const res = await fetch(`/api/plans/${planId}`);
         if (res.ok) {
           const body: PlanPayload = await res.json();
           if (!cancelled) {
             setData(body);
-            const jobSettled = body.job?.status === 'DONE' || body.job?.status === 'FAILED';
-            if (jobSettled) setReplanning(false);
-            // Stop only when there is a plan and nothing is in flight.
-            if ((body.days.length > 0 && jobSettled) || body.job?.status === 'FAILED') return;
+            settled = body.job?.status === 'DONE' || body.job?.status === 'FAILED';
+            if (settled) setReplanning(false);
+            // A rejected click must not leave its message beside the spinner
+            // of the run that did start.
+            if (body.job?.status === 'RUNNING') setReplanError(null);
           }
         }
       } catch {
         // transient — keep polling
       }
-      if (!cancelled) timer = setTimeout(poll, 4000);
+      // Never stop entirely: a run that starts later, or state changed outside
+      // this tab, would otherwise leave the page showing something stale.
+      // Fast while work is in flight, slow once everything has settled.
+      if (!cancelled) timer = setTimeout(poll, settled ? 20_000 : 4000);
     }
 
     poll();
@@ -374,8 +385,13 @@ export default function ItineraryView({ planId }: { planId: string }) {
 
   const d = data!;
   const first = d.days[0];
+  const datesDirty =
+    (draftStart !== null && draftStart !== d.plan.startDate) ||
+    (draftEnd !== null && draftEnd !== d.plan.endDate);
   const latestDiff = d.replans?.[0];
-  const showDiff = latestDiff && latestDiff.id !== dismissedDiff;
+  // Hide the previous diff while a new run is in flight — describing the last
+  // change beside a spinner for the next one reads as though it just happened.
+  const showDiff = !busy && latestDiff && latestDiff.id !== dismissedDiff;
   // The agent looked and found nothing worth changing — say so, rather than
   // leaving the spinner to vanish with no explanation.
   const noChangeNeeded =
@@ -394,6 +410,9 @@ export default function ItineraryView({ planId }: { planId: string }) {
             )}
           </span>
         </div>
+        <Link href="/trips" className={styles.printLink}>
+          Your trips
+        </Link>
         <button
           type="button"
           className={styles.printLink}
@@ -484,6 +503,58 @@ export default function ItineraryView({ planId }: { planId: string }) {
                 </option>
               ))}
             </select>
+            {/* Editing dates is nearly always two edits, so the re-plan waits
+                for an explicit confirm. Firing on change started a run against
+                half-updated dates and produced days the agent never planned. */}
+            <label className={styles.paceLabel} htmlFor="startDate">
+              Dates
+            </label>
+            <input
+              id="startDate"
+              type="date"
+              className={styles.dateInput}
+              value={draftStart ?? d.plan.startDate}
+              disabled={busy}
+              onChange={(e) => setDraftStart(e.target.value)}
+            />
+            <span className={styles.dateSep}>→</span>
+            <input
+              id="endDate"
+              type="date"
+              className={styles.dateInput}
+              value={draftEnd ?? d.plan.endDate}
+              min={draftStart ?? d.plan.startDate}
+              disabled={busy}
+              onChange={(e) => setDraftEnd(e.target.value)}
+            />
+            {datesDirty && (
+              <>
+                <button
+                  type="button"
+                  className={styles.applyBtn}
+                  onClick={() => {
+                    triggerReplan('dates_change', {
+                      startDate: draftStart ?? d.plan.startDate,
+                      endDate: draftEnd ?? d.plan.endDate,
+                    });
+                    setDraftStart(null);
+                    setDraftEnd(null);
+                  }}
+                >
+                  Update dates
+                </button>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => {
+                    setDraftStart(null);
+                    setDraftEnd(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
             <span className={styles.replanHint}>
               Tap ⇄ on any stop to use its backup · check off days as you go
             </span>
@@ -526,6 +597,17 @@ export default function ItineraryView({ planId }: { planId: string }) {
                 Day {day.dayNumber} · {day.date}
                 <span className={styles.hood}>{day.neighbourhoodLabel}</span>
               </div>
+              {day.slots.length === 0 && (
+                <div className={styles.dayPending}>
+                  {busy ? (
+                    <>
+                      <span className={styles.miniSpinner} /> Planning this day…
+                    </>
+                  ) : (
+                    'This day has no stops yet — change the dates or pace to plan it.'
+                  )}
+                </div>
+              )}
               {day.slots.map((slot) => {
                 const onBackup = slot.activeChoice === 'backup';
                 const showing = onBackup && slot.backupPlace ? slot.backupPlace : slot.place;
