@@ -64,6 +64,12 @@ export async function GET(
     const stored = day.weather;
     const current = byDate.get(day.date.toISOString().slice(0, 10));
     if (!stored || !current) continue;
+    // Nothing to compare against for a trip that was planned without a
+    // forecast; it will get one once the dates come inside the horizon.
+    if (stored.tempMax == null || stored.precipitationProbability == null) continue;
+    // Open-Meteo always returns these for dates it covers, but the type allows
+    // absence, so narrow rather than assert.
+    if (current.tempMax == null || current.precipitationProbability == null) continue;
 
     const precipShift = Math.abs(current.precipitationProbability - stored.precipitationProbability);
     const tempShift = Math.abs(current.tempMax - stored.tempMax);

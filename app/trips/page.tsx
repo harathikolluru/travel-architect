@@ -10,6 +10,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@travel-architect/db';
 import { auth, authEnabled } from '@/app/auth';
 import AuthNav from '../AuthNav';
+import { ARCHIVE_GRACE_MS } from '../lib/archive';
 import TripList, { type TripCard } from './TripList';
 import styles from './trips.module.css';
 
@@ -37,11 +38,20 @@ export default async function TripsPage() {
     userId = demo?.id ?? null;
   }
 
+  // Hard-delete trips whose undo window has passed. Doing it on read keeps the
+  // grace period honest without a scheduled job; cascades clear the days,
+  // slots, markers, packing list, and replan history with them.
+  if (userId) {
+    await prisma.tripPlan.deleteMany({
+      where: { userId, archivedAt: { lt: new Date(Date.now() - ARCHIVE_GRACE_MS) } },
+    });
+  }
+
   // A plan with no days is one whose agent run never finished. Listing those
   // just reminds people something broke, so only completed plans appear here.
   const rows = userId
     ? await prisma.tripPlan.findMany({
-        where: { userId, days: { some: {} } },
+        where: { userId, archivedAt: null, days: { some: {} } },
         orderBy: { startDate: 'asc' },
         include: { days: { select: { id: true, isComplete: true } } },
       })

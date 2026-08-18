@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { MAX_TRIP_DAYS } from '../../lib/trip-limits';
 import styles from '../itinerary.module.css';
 
 interface Slot {
@@ -35,9 +36,9 @@ interface Day {
   isComplete: boolean;
   weather: {
     condition: string;
-    tempMin: number;
-    tempMax: number;
-    precipitationProbability: number;
+    tempMin: number | null;
+    tempMax: number | null;
+    precipitationProbability: number | null;
     isIndoorDay: boolean;
   } | null;
   slots: Slot[];
@@ -524,6 +525,12 @@ export default function ItineraryView({ planId }: { planId: string }) {
               className={styles.dateInput}
               value={draftEnd ?? d.plan.endDate}
               min={draftStart ?? d.plan.startDate}
+              max={new Date(
+                Date.parse(`${draftStart ?? d.plan.startDate}T00:00:00.000Z`) +
+                  (MAX_TRIP_DAYS - 1) * 86_400_000,
+              )
+                .toISOString()
+                .slice(0, 10)}
               disabled={busy}
               onChange={(e) => setDraftEnd(e.target.value)}
             />
@@ -569,7 +576,7 @@ export default function ItineraryView({ planId }: { planId: string }) {
             .map(
               (day) =>
                 `Day ${day.dayNumber}: ${day.weather?.condition ?? 'no forecast'}` +
-                (day.weather ? ` ${Math.round(day.weather.tempMax)}°C` : '') +
+                (day.weather?.tempMax != null ? ` ${Math.round(day.weather.tempMax)}°C` : '') +
                 (day.weather?.isIndoorDay ? ' — indoor backups ready' : ''),
             )
             .join('  ·  ')}

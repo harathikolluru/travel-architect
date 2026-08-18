@@ -15,9 +15,12 @@ import { distanceKm } from '@travel-architect/contracts';
 
 const NO_FORECAST_GUIDANCE =
   'Do not call this tool again — the answer will not change. Plan without weather ' +
-  'adaptation: set isIndoorDay false, use a neutral condition like "forecast unavailable", ' +
-  'and base the packing list on the destination and season rather than specific conditions. ' +
-  'Never state temperatures or rain chances you did not receive.';
+  'adaptation: set isIndoorDay false and use the condition "forecast unavailable". ' +
+  'OMIT tempMin, tempMax and precipitationProbability entirely — leave the fields out ' +
+  'rather than supplying a seasonal average or any other estimate. Temperatures are in ' +
+  'Celsius, and a value you did not receive is a fabrication even if it is plausible. ' +
+  'Base the packing list on the destination and season, saying so explicitly, and never ' +
+  'state a temperature or rain chance in a rationale.';
 
 const text = (value: unknown) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(value, null, 1) }],

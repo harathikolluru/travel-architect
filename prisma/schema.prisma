@@ -144,6 +144,10 @@ model TripPlan {
   version           Int            @default(1)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
+  /// Soft delete. Deleting is instant from the user's side but reversible for a
+  /// short window via the undo toast; a sweep hard-deletes rows archived over a
+  /// day ago. Cascades make a true delete unrecoverable, so it waits.
+  archivedAt        DateTime?
   days              DayPlan[]
   packingList       PackingList?
   replans           ReplanEvent[]
@@ -152,6 +156,7 @@ model TripPlan {
   geocodingId       String?
 
   @@index([userId, startDate])
+  @@index([userId, archivedAt])
 }
 
 model DayPlan {
@@ -289,9 +294,11 @@ model WeatherForecast {
   destination              String
   forecastDate             DateTime
   condition                String // sunny | rainy | cloudy | stormy …
-  tempMin                  Float
-  tempMax                  Float
-  precipitationProbability Float
+  /// Null when no forecast was available — trips beyond the ~16-day horizon.
+  /// Celsius.
+  tempMin                  Float?
+  tempMax                  Float?
+  precipitationProbability Float?
   windSpeed                Float?
   /// Derived: drives whether generate-day-plan surfaces indoor backups.
   isIndoorDay              Boolean   @default(false)

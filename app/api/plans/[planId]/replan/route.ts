@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@travel-architect/db';
 import { auth, authEnabled } from '@/app/auth';
 import { reapStaleJobs } from '@/app/lib/jobs';
+import { MAX_TRIP_DAYS } from '@/app/lib/trip-limits';
 
 export const runtime = 'nodejs';
 export const maxDuration = 600;
@@ -92,9 +93,9 @@ export async function POST(
     if (shiftMs === 0 && newCount === oldCount) {
       return NextResponse.json({ error: 'Those are already your dates.' }, { status: 400 });
     }
-    if (newCount > 7) {
+    if (newCount > MAX_TRIP_DAYS) {
       return NextResponse.json(
-        { error: 'Trips longer than 7 days are not supported yet.' },
+        { error: `Trips longer than ${MAX_TRIP_DAYS} days are not supported yet.` },
         { status: 400 },
       );
     }

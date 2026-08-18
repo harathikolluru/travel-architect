@@ -52,15 +52,54 @@ function Card({
   trip,
   today,
   tone,
+  onDelete,
 }: {
   trip: TripCard;
   today: string;
   tone: 'active' | 'upcoming' | 'past';
+  onDelete: (trip: TripCard) => void;
 }) {
   const dayOfTrip = daysBetween(trip.startDate, today) + 1;
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <li className={`${styles.card} ${tone === 'past' ? styles.cardPast : ''}`}>
+      {/* Kept out of the card's main click target: a destructive action should
+          not sit next to the thing you tap to open the trip. */}
+      <div className={styles.cardMenu}>
+        <button
+          type="button"
+          className={styles.menuBtn}
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label={`Options for ${trip.destination}`}
+          aria-expanded={menuOpen}
+        >
+          ⋯
+        </button>
+        {menuOpen && (
+          <>
+            <button
+              type="button"
+              className={styles.menuBackdrop}
+              onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
+            />
+            <div className={styles.menu}>
+              <button
+                type="button"
+                className={styles.menuItem}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete(trip);
+                }}
+              >
+                Delete trip
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       <Link href={`/itinerary/${trip.id}`} className={styles.cardLink}>
         <div className={styles.cardMain}>
           <span className={styles.dest}>{trip.destination}</span>
@@ -95,35 +134,107 @@ function Card({
   );
 }
 
+/**
+ * Deleting a trip is rare, deliberate, and the itinerary took minutes to
+ * generate — so this asks once, plainly. Undo suits high-frequency actions like
+ * archiving mail; here a dialog is what people expect and simpler to reason
+ * about. The row is still soft-deleted server-side, so a mis-click stays
+ * recoverable from the database for a day.
+ */
+function ConfirmDelete({
+  trip,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  trip: TripCard;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className={styles.dialogBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-title"
+      onClick={onCancel}
+    >
+      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+        <h2 id="delete-title" className={styles.dialogTitle}>
+          Delete this trip?
+        </h2>
+        <p className={styles.dialogBody}>
+          <strong className={styles.dialogDest}>{trip.destination}</strong>,{' '}
+          {formatRange(trip.startDate, trip.endDate)}. Its itinerary and packing list will be
+          removed. This can&apos;t be undone.
+        </p>
+        <div className={styles.dialogActions}>
+          <button type="button" className={styles.dialogCancel} onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.dialogDelete}
+            onClick={onConfirm}
+            disabled={busy}
+            autoFocus
+          >
+            {busy ? 'Deleting…' : 'Delete trip'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TripList({ active, upcoming, past, today }: Props) {
   // Past trips are history, not a to-do list — collapsed unless asked for.
   const [showPast, setShowPast] = useState(false);
+  const [pending, setPending] = useState<TripCard | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [deleted, setDeleted] = useState<Set<string>>(new Set());
+
+  async function confirmDelete() {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/plans/${pending.id}/archive`, { method: 'POST' });
+      if (res.ok) setDeleted((s) => new Set(s).add(pending.id));
+    } finally {
+      setBusy(false);
+      setPending(null);
+    }
+  }
+
+  const visible = (list: TripCard[]) => list.filter((t) => !deleted.has(t.id));
+  const [a, u, p] = [visible(active), visible(upcoming), visible(past)];
 
   return (
     <>
-      {active.length > 0 && (
+      {a.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Happening now</h2>
           <ul className={styles.list}>
-            {active.map((t) => (
-              <Card key={t.id} trip={t} today={today} tone="active" />
+            {a.map((t) => (
+              <Card key={t.id} trip={t} today={today} tone="active" onDelete={setPending} />
             ))}
           </ul>
         </section>
       )}
 
-      {upcoming.length > 0 && (
+      {u.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Upcoming</h2>
           <ul className={styles.list}>
-            {upcoming.map((t) => (
-              <Card key={t.id} trip={t} today={today} tone="upcoming" />
+            {u.map((t) => (
+              <Card key={t.id} trip={t} today={today} tone="upcoming" onDelete={setPending} />
             ))}
           </ul>
         </section>
       )}
 
-      {past.length > 0 && (
+      {p.length > 0 && (
         <section className={styles.section}>
           <button
             type="button"
@@ -132,16 +243,25 @@ export default function TripList({ active, upcoming, past, today }: Props) {
             aria-expanded={showPast}
           >
             <span className={showPast ? styles.caretOpen : styles.caret}>›</span>
-            Past trips ({past.length})
+            Past trips ({p.length})
           </button>
           {showPast && (
             <ul className={styles.list}>
-              {past.map((t) => (
-                <Card key={t.id} trip={t} today={today} tone="past" />
+              {p.map((t) => (
+                <Card key={t.id} trip={t} today={today} tone="past" onDelete={setPending} />
               ))}
             </ul>
           )}
         </section>
+      )}
+
+      {pending && (
+        <ConfirmDelete
+          trip={pending}
+          busy={busy}
+          onConfirm={confirmDelete}
+          onCancel={() => setPending(null)}
+        />
       )}
     </>
   );

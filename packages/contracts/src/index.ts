@@ -21,6 +21,13 @@ export const REPLAN_TRIGGERS = [
   'dates_change',
 ] as const;
 
+/**
+ * Longest trip the planner will build. Lives here so the contract, the API and
+ * the form cannot disagree — they did once, and the agent silently saved only
+ * the last 7 days of a 14-day plan, numbered 8-14.
+ */
+export const MAX_TRIP_DAYS = 14;
+
 /** Stops per day, by pace. cluster-itinerary must not exceed the ceiling. */
 export const PACE_BOUNDS: Record<(typeof PACES)[number], { min: number; max: number }> = {
   relaxed: { min: 2, max: 3 },
@@ -133,9 +140,15 @@ export const ItinerarySlotSpecSchema = z
 export const WeatherSpecSchema = z.object({
   forecastDate: z.iso.date(),
   condition: z.string().min(1),
-  tempMin: z.number(),
-  tempMax: z.number(),
-  precipitationProbability: z.number().min(0).max(1),
+  /**
+   * Celsius, and omitted entirely when no forecast was returned — trips beyond
+   * the ~16-day horizon have none. These were required once, which left the
+   * agent no way to say "unknown": it filled in Fahrenheit seasonal averages
+   * and the UI rendered them as 78°C. The bound catches that class of mistake.
+   */
+  tempMin: z.number().min(-60).max(55).optional(),
+  tempMax: z.number().min(-60).max(55).optional(),
+  precipitationProbability: z.number().min(0).max(1).optional(),
   windSpeed: z.number().optional(),
   isIndoorDay: z.boolean(),
 });
@@ -169,7 +182,7 @@ export const PlannerOutputSchema = z
     startDate: z.iso.date(),
     endDate: z.iso.date(),
     pace: z.enum(PACES),
-    days: z.array(DayPlanSpecSchema).min(1).max(7),
+    days: z.array(DayPlanSpecSchema).min(1).max(MAX_TRIP_DAYS),
     packingItems: z.array(PackingItemSpecSchema).min(1),
     coverageWarning: z.string().nullable().default(null),
   })
@@ -183,6 +196,15 @@ export const PlannerOutputSchema = z
       return seen.size === p.days.length;
     },
     { message: 'duplicate dayNumber', path: ['days'] },
+  )
+  .refine(
+    (p) => {
+      // Must be 1..n with no gaps. A partial save once produced days numbered
+      // 8-14, which rendered as a trip that began on Day 8.
+      const nums = p.days.map((d) => d.dayNumber).sort((a, b) => a - b);
+      return nums.every((n, i) => n === i + 1);
+    },
+    { message: 'days must be numbered 1..n consecutively', path: ['days'] },
   );
 
 // ── Re-plan diff ────────────────────────────────────────────────────────

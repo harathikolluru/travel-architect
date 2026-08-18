@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@travel-architect/db';
 import { auth, authEnabled } from '@/app/auth';
+import { MAX_TRIP_DAYS, todayISO, tripDays } from '@/app/lib/trip-limits';
 
 export const runtime = 'nodejs';
 /** Agent runs take minutes; keep the request alive long enough to finish. */
@@ -23,10 +24,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid date range' }, { status: 400 });
   }
 
-  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
-  if (days > 7) {
+  // A trip that has already started cannot be planned around — the forecast is
+  // gone and the opening hours were for days that have passed.
+  if (body.startDate < todayISO()) {
     return NextResponse.json(
-      { error: 'Trips longer than 7 days are not supported yet.' },
+      { error: 'That start date has passed. Pick today or later.' },
+      { status: 400 },
+    );
+  }
+
+  const days = tripDays(body.startDate, body.endDate);
+  if (days > MAX_TRIP_DAYS) {
+    return NextResponse.json(
+      { error: `Trips longer than ${MAX_TRIP_DAYS} days are not supported yet.` },
       { status: 400 },
     );
   }

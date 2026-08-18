@@ -87,9 +87,12 @@ export default async function PrintPage({
 
           {day.weather && (
             <p className={styles.weather}>
-              {day.weather.condition}, {Math.round(day.weather.tempMin)}–
-              {Math.round(day.weather.tempMax)}°C
-              {day.weather.precipitationProbability > 0 &&
+              {day.weather.condition}
+              {day.weather.tempMin != null &&
+                day.weather.tempMax != null &&
+                `, ${Math.round(day.weather.tempMin)}–${Math.round(day.weather.tempMax)}°C`}
+              {day.weather.precipitationProbability != null &&
+                day.weather.precipitationProbability > 0 &&
                 ` · ${Math.round(day.weather.precipitationProbability * 100)}% chance of rain`}
               {day.weather.isIndoorDay && ' · indoor day'}
             </p>
