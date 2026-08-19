@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
-import { auth, authEnabled, signOut } from '@/app/auth';
+import { auth, authEnabled } from '@/app/auth';
 import styles from './auth-nav.module.css';
+import AccountMenu from './AccountMenu';
 
 /**
  * Top-right account controls.
@@ -40,17 +41,7 @@ export default async function AuthNav() {
       <Link href="/trips" className={styles.tripsLink}>
         Your trips
       </Link>
-      <span className={styles.who}>{session.user.name ?? session.user.email}</span>
-      <form
-        action={async () => {
-          'use server';
-          await signOut({ redirectTo: '/' });
-        }}
-      >
-        <button type="submit" className={styles.signOut}>
-          Sign out
-        </button>
-      </form>
+      <AccountMenu name={session.user.name ?? session.user.email ?? 'Account'} />
     </nav>
   );
 }
