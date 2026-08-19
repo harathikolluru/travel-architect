@@ -49,7 +49,9 @@ jobs:
             --secrets \
               anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
               google-client-id="${{ secrets.AUTH_GOOGLE_ID }}" \
-              google-client-secret="${{ secrets.AUTH_GOOGLE_SECRET }}"
+              google-client-secret="${{ secrets.AUTH_GOOGLE_SECRET }}" \
+              microsoft-client-id="${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ID }}" \
+              microsoft-client-secret="${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}"
           az containerapp update \
             --resource-group rg-students-platform \
             --name ca-${{ vars.STUDENT }} \
@@ -57,6 +59,8 @@ jobs:
               ANTHROPIC_API_KEY=secretref:anthropic-api-key \
               AUTH_GOOGLE_ID=secretref:google-client-id \
               AUTH_GOOGLE_SECRET=secretref:google-client-secret \
+              AUTH_MICROSOFT_ENTRA_ID_ID=secretref:microsoft-client-id \
+              AUTH_MICROSOFT_ENTRA_ID_SECRET=secretref:microsoft-client-secret \
               AGENT_MODEL=claude-sonnet-5
 
       - name: Deploy to Container App
