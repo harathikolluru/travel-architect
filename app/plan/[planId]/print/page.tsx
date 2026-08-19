@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@travel-architect/db';
 import { auth, authEnabled } from '@/app/auth';
 import { verifyPrintToken } from '@/app/lib/print-token';
+import { hoursOn, isOpenAt } from '@/app/lib/opening-hours';
 import styles from './print.module.css';
 
 export const runtime = 'nodejs';
@@ -72,6 +73,11 @@ export default async function PrintPage({
         {plan.dietaryPreference && (
           <p className={styles.meta}>Dietary preference: {plan.dietaryPreference}</p>
         )}
+        {plan.days.every((d) => d.weather?.tempMax == null) && (
+          <p className={styles.meta}>
+            No forecast was available for these dates — they fall beyond the forecast horizon.
+          </p>
+        )}
       </header>
 
       {plan.days.map((day) => (
@@ -85,7 +91,10 @@ export default async function PrintPage({
             )}
           </div>
 
-          {day.weather && (
+          {/* Nothing useful to print when the forecast is absent — "forecast
+              unavailable" on every day is noise, and the trip-level note below
+              already says it once. */}
+          {day.weather && day.weather.tempMax != null && (
             <p className={styles.weather}>
               {day.weather.condition}
               {day.weather.tempMin != null &&
@@ -108,6 +117,11 @@ export default async function PrintPage({
                 const alternative =
                   slot.activeChoice === 'BACKUP' ? slot.place : slot.backupPlace;
                 const hours = (showing.openingHours as { raw?: string } | null)?.raw;
+                // The screen shows this warning inline; on paper the reader has
+                // to spot the conflict themselves unless we carry it across.
+                const weekday = day.date.getUTCDay();
+                const closed = isOpenAt(hours ?? null, weekday, slot.scheduledTime) === 'closed';
+                const todaysHours = hoursOn(hours ?? null, weekday);
                 return (
                   <tr key={slot.id} className={styles.slot}>
                     <td className={styles.time}>{slot.scheduledTime}</td>
@@ -115,9 +129,20 @@ export default async function PrintPage({
                       <div className={styles.place}>{showing.name}</div>
                       <div className={styles.rationale}>{slot.rationale}</div>
                       <div className={styles.detail}>
-                        {hours ?? 'Hours unconfirmed — check before you go'}
+                        {/* Prefer just this weekday's hours: some sources carry
+                            long seasonal rules that wrap across lines on paper.
+                            Falls back to the raw string when unparseable. */}
+                        {todaysHours
+                          ? `${todaysHours} on this day`
+                          : (hours ?? 'Hours unconfirmed — check before you go')}
                         {showing.address && ` · ${showing.address}`}
                       </div>
+                      {closed && (
+                        <div className={styles.warning}>
+                          ⚠ Looks closed at {slot.scheduledTime}
+                          {todaysHours ? ` — usually ${todaysHours} on this day.` : ' that day.'}
+                        </div>
+                      )}
                       {alternative && (
                         <div className={styles.backup}>
                           If that does not work: {alternative.name}

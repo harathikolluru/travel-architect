@@ -267,6 +267,9 @@ export function dayColor(dayNumber: number): string {
   return DAY_COLORS[(dayNumber - 1) % DAY_COLORS.length];
 }
 
+/** Miles per kilometre. Distances are shown in miles for a US audience. */
+export const MILES_PER_KM = 0.621371;
+
 /** Haversine distance in km — used to sanity-check cluster tightness. */
 export function distanceKm(a: Coordinate, b: Coordinate): number {
   const R = 6371;

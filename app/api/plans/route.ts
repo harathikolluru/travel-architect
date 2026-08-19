@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@travel-architect/db';
 import { auth, authEnabled } from '@/app/auth';
 import { MAX_TRIP_DAYS, todayISO, tripDays } from '@/app/lib/trip-limits';
+import '@/app/lib/mcp-setup';
 
 export const runtime = 'nodejs';
 /** Agent runs take minutes; keep the request alive long enough to finish. */
@@ -44,9 +45,20 @@ export async function POST(req: Request) {
   // Resolve the destination before creating anything. A state or country bbox
   // produces Overpass queries that hang for minutes, so fail fast with an
   // actionable message instead of leaving the user on a spinner.
+  let resolved: { name: string; lat: number; lng: number } | null = null;
   try {
     const { geocode } = await import('@travel-architect/mcp');
     const geo = await geocode(body.destination);
+    if (geo) {
+      // Store what the geocoder actually resolved rather than the raw input:
+      // "new york" becomes "New York", and the casing is then correct in the
+      // header, the trips list and the PDF without any CSS capitalisation.
+      resolved = {
+        name: geo.displayName.split(',')[0].trim(),
+        lat: geo.lat,
+        lng: geo.lng,
+      };
+    }
     if (!geo) {
       return NextResponse.json(
         { error: `We couldn't find "${body.destination}". Try including the state, e.g. "Boulder, Colorado".` },
@@ -86,9 +98,9 @@ export async function POST(req: Request) {
   const plan = await prisma.tripPlan.create({
     data: {
       userId,
-      destination: body.destination,
-      destinationLat: 0,
-      destinationLng: 0,
+      destination: resolved?.name ?? body.destination,
+      destinationLat: resolved?.lat ?? 0,
+      destinationLng: resolved?.lng ?? 0,
       startDate: start,
       endDate: end,
       pace: PACE[body.pace as keyof typeof PACE] ?? 'MODERATE',

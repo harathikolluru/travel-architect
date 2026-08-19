@@ -57,7 +57,24 @@ export async function getForecast(opts: {
     timezone: 'auto',
   })}`;
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  let res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+
+  // The API rejects the whole request if any date is outside its window, so a
+  // trip that straddles the horizon gets nothing — even for the days it does
+  // cover. Retry once against the range it tells us is allowed.
+  if (!res.ok && res.status === 400) {
+    const body = (await res.clone().json().catch(() => ({}))) as { reason?: string };
+    const allowed = /from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/.exec(body.reason ?? '');
+    if (allowed) {
+      const from = opts.startDate > allowed[1] ? opts.startDate : allowed[1];
+      const to = opts.endDate < allowed[2] ? opts.endDate : allowed[2];
+      if (from <= to) {
+        const retry = url.replace(`start_date=${opts.startDate}`, `start_date=${from}`)
+          .replace(`end_date=${opts.endDate}`, `end_date=${to}`);
+        res = await fetch(retry, { signal: AbortSignal.timeout(30_000) });
+      }
+    }
+  }
 
   if (!res.ok) {
     // Open-Meteo only forecasts ~16 days out and returns a hard 400 beyond

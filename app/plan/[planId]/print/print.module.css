@@ -75,7 +75,6 @@
   font-weight: 800;
   color: #1f2a52;
   margin-bottom: 4px;
-  text-transform: capitalize;
 }
 
 .meta {
@@ -244,5 +243,22 @@
     background: transparent;
     padding: 0;
     color: #6b5000;
+  }
+}
+
+.warning {
+  font-size: 9pt;
+  color: #92400e;
+  margin-top: 4px;
+  padding: 3px 7px;
+  border-left: 2px solid #d97706;
+  background: #fffbeb;
+}
+
+@media print {
+  /* Backgrounds are unreliable on paper; the rule carries the emphasis. */
+  .warning {
+    background: transparent;
+    padding-left: 7px;
   }
 }

@@ -192,7 +192,11 @@ export async function POST(
     }
 
     parts.push(
-      `Re-check the forecast too, since indoor/outdoor choices were made for the old dates. ` +
+      `Call get_weather_forecast again and save whatever it returns, even if the plan ` +
+        `currently records "forecast unavailable" for every day. The forecast horizon moves ` +
+        `forward daily, so dates that had no data when this plan was built may have real ` +
+        `weather now — and days still beyond the horizon must keep their empty values. ` +
+        `Where a forecast has appeared, re-check indoor/outdoor choices against it. ` +
         `Leave stops that still work.`,
     );
 

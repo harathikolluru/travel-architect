@@ -75,7 +75,6 @@
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--indigo);
-  text-transform: capitalize;
 }
 
 .dates {
@@ -291,7 +290,6 @@
 
 .dialogDest {
   color: var(--ink);
-  text-transform: capitalize;
 }
 
 .dialogActions {

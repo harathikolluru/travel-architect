@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { MAX_TRIP_DAYS } from '../../lib/trip-limits';
+import AddStop from './AddStop';
 import styles from '../itinerary.module.css';
 
 interface Slot {
@@ -118,9 +119,19 @@ export default function ItineraryView({ planId }: { planId: string }) {
   const [weather, setWeather] = useState<WeatherChange[] | null>(null);
   const [weatherDismissed, setWeatherDismissed] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // True only while a re-plan started in this session is settling. Derived from
+  // the last job alone, the "nothing needed changing" note would reappear on
+  // every reload, describing a run from minutes ago.
+  const [reportNoChange, setReportNoChange] = useState(false);
   // Pending date edits, null until the user touches a field.
   const [draftStart, setDraftStart] = useState<string | null>(null);
   const [draftEnd, setDraftEnd] = useState<string | null>(null);
+  // Which day is showing the add-stop panel, if any.
+  const [addingTo, setAddingTo] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [editingTime, setEditingTime] = useState<string | null>(null);
+  // Keyed by slot id so a warning stays attached to the stop it concerns.
+  const [hoursWarning, setHoursWarning] = useState<Record<string, string>>({});
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<unknown>(null);
 
@@ -173,6 +184,7 @@ export default function ItineraryView({ planId }: { planId: string }) {
   async function triggerReplan(trigger: string, extra: Record<string, unknown> = {}) {
     setReplanError(null);
     setReplanning(true);
+    setReportNoChange(true);
     try {
       const res = await fetch(`/api/plans/${planId}/replan`, {
         method: 'POST',
@@ -195,6 +207,51 @@ export default function ItineraryView({ planId }: { planId: string }) {
       await refresh();
     } finally {
       setSwapping(null);
+    }
+  }
+
+  async function changeTime(slotId: string, scheduledTime: string) {
+    setEditingTime(null);
+    try {
+      const res = await fetch(`/api/plans/${planId}/slots/${slotId}/time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledTime }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? 'Could not change the time');
+      setHoursWarning((w) => {
+        const next = { ...w };
+        if (body.warning) {
+          next[slotId] =
+            body.warning.message +
+            (body.warning.hours ? ` Usually ${body.warning.hours}.` : '');
+        } else {
+          delete next[slotId];
+        }
+        return next;
+      });
+      await refresh();
+    } catch (e) {
+      setReplanError((e as Error).message);
+    }
+  }
+
+  /** Manual edit — the rest of the day keeps its stops and times. */
+  async function removeSlot(slotId: string) {
+    setRemoving(slotId);
+    setReplanError(null);
+    try {
+      const res = await fetch(`/api/plans/${planId}/slots/${slotId}/swap`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Could not remove that stop');
+      }
+      await refresh();
+    } catch (e) {
+      setReplanError((e as Error).message);
+    } finally {
+      setRemoving(null);
     }
   }
 
@@ -396,7 +453,7 @@ export default function ItineraryView({ planId }: { planId: string }) {
   // The agent looked and found nothing worth changing — say so, rather than
   // leaving the spinner to vanish with no explanation.
   const noChangeNeeded =
-    d.job?.type === 'REPLAN' && d.job.status === 'DONE' && d.job.changed === false;
+    reportNoChange && d.job?.type === 'REPLAN' && d.job.status === 'DONE' && d.job.changed === false;
 
   return (
     <main className={styles.wrap}>
@@ -460,13 +517,27 @@ export default function ItineraryView({ planId }: { planId: string }) {
           </span>
           <button
             className={styles.alertAction}
-            onClick={() => {
+            onClick={async () => {
               setWeatherDismissed(true);
-              triggerReplan('weather_change', {
-                detail: weather
-                  .map((w) => `Day ${w.dayNumber}: was ${w.was}, now ${w.now} — ${w.reason}.`)
-                  .join(' '),
-              });
+              // Store the forecast first: save_replan cannot write weather, so
+              // an agent run alone would report success and change nothing.
+              const wx = await fetch(`/api/plans/${planId}/weather-check`, { method: 'POST' });
+              const wxBody = await wx.json().catch(() => ({}));
+              // A stale "nothing needed changing" would otherwise sit above a
+              // banner that just filled in three days of weather.
+              if (wxBody.updated > 0) setReportNoChange(false);
+              await refresh();
+
+              // Only involve the agent where conditions actually shifted — a
+              // forecast merely becoming available needs no re-planning.
+              const shifted = weather.filter((w) => w.was !== 'no forecast');
+              if (shifted.length > 0) {
+                triggerReplan('weather_change', {
+                  detail: shifted
+                    .map((w) => `Day ${w.dayNumber}: was ${w.was}, now ${w.now} — ${w.reason}.`)
+                    .join(' '),
+                });
+              }
             }}
           >
             Update those days
@@ -572,14 +643,19 @@ export default function ItineraryView({ planId }: { planId: string }) {
 
       {first?.weather && (
         <div className={styles.weatherBanner}>
-          {d.days
-            .map(
-              (day) =>
-                `Day ${day.dayNumber}: ${day.weather?.condition ?? 'no forecast'}` +
-                (day.weather?.tempMax != null ? ` ${Math.round(day.weather.tempMax)}°C` : '') +
-                (day.weather?.isIndoorDay ? ' — indoor backups ready' : ''),
-            )
-            .join('  ·  ')}
+          {/* Saying "forecast unavailable" once per day is noise on a two-week
+              trip; state it once and list only the days that have a forecast. */}
+          {d.days.every((day) => day.weather?.tempMax == null)
+            ? 'No forecast yet — these dates are beyond the forecast horizon.'
+            : d.days
+                .filter((day) => day.weather?.tempMax != null)
+                .map(
+                  (day) =>
+                    `Day ${day.dayNumber}: ${day.weather!.condition} ` +
+                    `${Math.round(day.weather!.tempMax!)}°C` +
+                    (day.weather!.isIndoorDay ? ' — indoor backups ready' : ''),
+                )
+                .join('  ·  ')}
         </div>
       )}
 
@@ -621,17 +697,58 @@ export default function ItineraryView({ planId }: { planId: string }) {
                 const alternative = onBackup ? slot.place : slot.backupPlace;
                 return (
                   <div key={slot.id} className={styles.slot}>
-                    <span className={styles.time}>{slot.time}</span>
+                    {editingTime === slot.id ? (
+                      <input
+                        type="time"
+                        className={styles.timeInput}
+                        defaultValue={slot.time}
+                        autoFocus
+                        onBlur={(e) => changeTime(slot.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                          if (e.key === 'Escape') setEditingTime(null);
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.time}
+                        onClick={() => setEditingTime(slot.id)}
+                        disabled={day.isComplete}
+                        title="Change the time"
+                      >
+                        {slot.time}
+                      </button>
+                    )}
                     <span className={styles.icon}>{slot.slotType === 'meal' ? '🍽️' : '🏛️'}</span>
                     <div className={styles.slotBody}>
-                      <div className={styles.slotName}>
-                        {showing.name}
-                        {onBackup && <span className={styles.swappedTag}>backup</span>}
+                      <div className={styles.slotTitleRow}>
+                        <div className={styles.slotName}>
+                          {showing.name}
+                          {onBackup && <span className={styles.swappedTag}>backup</span>}
+                        </div>
+                        {/* On the title line, not beside the backup button:
+                            next to "⇄ Bryant Park" an ✕ reads as "remove that
+                            backup" rather than "remove this stop". */}
+                        <button
+                          className={styles.removeBtn}
+                          onClick={() => removeSlot(slot.id)}
+                          disabled={removing === slot.id || day.isComplete}
+                          title={`Remove ${showing.name} from this day`}
+                          aria-label={`Remove ${showing.name} from this day`}
+                        >
+                          {removing === slot.id ? '…' : '✕'}
+                        </button>
                       </div>
                       <div className={styles.rationale}>{slot.rationale}</div>
                       <div className={styles.hours}>
                         {showing.openingHours ?? 'Hours unconfirmed'}
                       </div>
+                      {hoursWarning[slot.id] && (
+                        <div className={styles.hoursWarning}>
+                          ⚠ {hoursWarning[slot.id]}
+                        </div>
+                      )}
                       {alternative && (
                         <button
                           className={styles.swapBtn}
@@ -647,6 +764,33 @@ export default function ItineraryView({ planId }: { planId: string }) {
                   </div>
                 );
               })}
+
+              {!day.isComplete &&
+                (addingTo === day.dayNumber ? (
+                  <AddStop
+                    planId={planId}
+                    dayNumber={day.dayNumber}
+                    defaultTime={day.slots.at(-1)?.time ?? '12:00'}
+                    onAdded={(result) => {
+                      setAddingTo(null);
+                      // Attach to the stop it concerns, like the other hours
+                      // warnings, rather than the page-level error slot.
+                      if (result) {
+                        setHoursWarning((w) => ({ ...w, [result.slotId]: result.warning }));
+                      }
+                      refresh();
+                    }}
+                    onCancel={() => setAddingTo(null)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.addStopBtn}
+                    onClick={() => setAddingTo(day.dayNumber)}
+                  >
+                    + Add a stop
+                  </button>
+                ))}
             </div>
           ))}
 
